@@ -1,0 +1,66 @@
+export interface User {
+  id: number;
+  username: string;
+}
+
+export interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+  model?: string;
+  preset?: string;
+}
+
+export interface Chat {
+  id: string;
+  title: string;
+  messages: Message[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface ChatListItem {
+  id: string;
+  title: string;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface Model {
+  id: string;
+  object: string;
+  owned_by: string;
+}
+
+export interface Prompt {
+  id: number;
+  name: string;
+  system_prompt: string;
+  suffix: string;
+  is_global?: number;
+}
+
+export interface Settings {
+  system_prompt: string;
+  suffix: string;
+  model: string;
+  naming_model: string | null;
+}
+
+export interface ModelPromptMap {
+  [model: string]: number | null;
+}
+
+export interface StreamChunk {
+  content?: string;
+  error?: string;
+}
+
+export interface ThinkingBlock {
+  content: string;
+  isStreaming: boolean;
+}
+
+export interface ExtractedContent {
+  visible: string;
+  blocks: string[];
+}
