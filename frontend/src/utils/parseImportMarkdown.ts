@@ -20,32 +20,35 @@ export function parseImportMarkdown(markdown: string): ParseResult {
     return { success: false, error: 'Empty file' };
   }
 
-  // Extract title from first line (# Title)
+  // Extract title from first line (# Title) or generate one
   const titleLine = lines[0].trim();
-  if (!titleLine.startsWith('# ')) {
-    return { success: false, error: 'Missing title (expected "# Title" on first line)' };
+  let title = '';
+  if (titleLine.startsWith('# ')) {
+    title = titleLine.slice(2).trim();
   }
-  const title = titleLine.slice(2).trim();
   if (!title) {
-    return { success: false, error: 'Empty title' };
+    // Generate timestamp-based title
+    const now = new Date();
+    title = `Imported ${now.toLocaleDateString()} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
   }
 
   // Parse sections
   const messages: Message[] = [];
   let currentRole: 'user' | 'assistant' | null = null;
   let currentContent: string[] = [];
-  let isThinkingSection = false;
+  let isCollectingThinking = false;
   let thinkingContent: string[] = [];
 
-  const flushSection = () => {
+  const flushMessage = () => {
     if (currentRole && currentContent.length > 0) {
       let content = currentContent.join('\n').trim();
 
       // If we have accumulated thinking content, prepend it with markers
       if (thinkingContent.length > 0 && currentRole === 'assistant') {
         const thinking = thinkingContent.join('\n').trim();
-        content = `<thinking>\n${thinking}\n</thinking>\n\n${content}`;
-        thinkingContent = [];
+        if (thinking) {
+          content = `<thinking>\n${thinking}\n</thinking>\n\n${content}`;
+        }
       }
 
       if (content) {
@@ -53,6 +56,7 @@ export function parseImportMarkdown(markdown: string): ParseResult {
       }
     }
     currentContent = [];
+    thinkingContent = [];
   };
 
   for (let i = 1; i < lines.length; i++) {
@@ -74,23 +78,25 @@ export function parseImportMarkdown(markdown: string): ParseResult {
       const header = trimmedLine.slice(3).trim();
 
       if (header === 'User') {
-        // Flush previous section
-        flushSection();
+        // Flush any previous message
+        flushMessage();
         currentRole = 'user';
-        isThinkingSection = false;
+        isCollectingThinking = false;
       } else if (header === 'Assistant (Thinking)') {
-        // Don't flush yet - thinking content will be prepended to the next assistant message
-        isThinkingSection = true;
+        // Flush any previous message (like user message)
+        flushMessage();
+        // Start collecting thinking content
+        isCollectingThinking = true;
+        currentRole = null; // Will be set when we see ## Assistant
       } else if (header === 'Assistant') {
-        if (isThinkingSection) {
-          // We were in a thinking section, now entering the actual assistant content
-          // Store thinking content to prepend later
+        if (isCollectingThinking) {
+          // We were collecting thinking content, save it
           thinkingContent = [...currentContent];
           currentContent = [];
-          isThinkingSection = false;
+          isCollectingThinking = false;
         } else {
-          // Flush previous section
-          flushSection();
+          // No thinking section before this, flush previous message
+          flushMessage();
         }
         currentRole = 'assistant';
       }
@@ -98,13 +104,13 @@ export function parseImportMarkdown(markdown: string): ParseResult {
     }
 
     // Add content to current section
-    if (currentRole !== null || isThinkingSection) {
+    if (currentRole !== null || isCollectingThinking) {
       currentContent.push(line);
     }
   }
 
-  // Flush final section
-  flushSection();
+  // Flush final message
+  flushMessage();
 
   if (messages.length === 0) {
     return { success: false, error: 'No messages found in file' };
