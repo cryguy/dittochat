@@ -6,6 +6,7 @@ const modelPromptsRoutes = require('./modelPrompts');
 const modelsRoutes = require('./models');
 const chatRoutes = require('./chat');
 const openaiRoutes = require('./openai');
+const importRoutes = require('./import');
 
 module.exports = {
   authRoutes,
@@ -15,5 +16,6 @@ module.exports = {
   modelPromptsRoutes,
   modelsRoutes,
   chatRoutes,
-  openaiRoutes
+  openaiRoutes,
+  importRoutes
 };

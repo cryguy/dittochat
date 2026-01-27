@@ -4,6 +4,7 @@ import { Sidebar } from '../sidebar/Sidebar';
 import { Header } from './Header';
 import { ChatArea } from '../chat/ChatArea';
 import { SettingsModal } from '../settings/SettingsModal';
+import { ImportModal } from '../import/ImportModal';
 import { useChatStore } from '../../stores/chatStore';
 
 export function AppLayout() {
@@ -91,6 +92,7 @@ export function AppLayout() {
         <ChatArea />
       </main>
       <SettingsModal />
+      <ImportModal />
     </div>
   );
 }

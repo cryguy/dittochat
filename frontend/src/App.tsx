@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SettingsProvider } from './contexts/SettingsContext';
+import { ImportProvider } from './contexts/ImportContext';
 import { AuthScreen } from './components/auth/AuthScreen';
 import { AppLayout } from './components/layout/AppLayout';
 import './styles/index.css';
@@ -71,7 +72,9 @@ export function App() {
     <BrowserRouter>
       <AuthProvider>
         <SettingsProvider>
-          <AppRoutes />
+          <ImportProvider>
+            <AppRoutes />
+          </ImportProvider>
         </SettingsProvider>
       </AuthProvider>
     </BrowserRouter>

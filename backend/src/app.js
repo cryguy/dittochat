@@ -10,7 +10,8 @@ const {
   modelPromptsRoutes,
   modelsRoutes,
   chatRoutes,
-  openaiRoutes
+  openaiRoutes,
+  importRoutes
 } = require('./routes');
 
 const app = express();
@@ -30,6 +31,7 @@ app.get('/api/config', (req, res) => {
   });
 });
 app.use('/api/chat', chatRoutes);
+app.use('/api/import', importRoutes);
 
 // OpenAI Compatible API
 app.use('/v1', openaiRoutes);

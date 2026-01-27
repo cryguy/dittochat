@@ -1,10 +1,12 @@
 import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext';
+import { useImport } from '../../contexts/ImportContext';
 import { useChatStore } from '../../stores/chatStore';
 
 export function SidebarFooter() {
   const { username, logout } = useAuth();
   const { openSettings } = useSettings();
+  const { openImport } = useImport();
   const { currentChatId, deleteChat } = useChatStore();
 
   const handleDeleteChat = () => {
@@ -27,6 +29,13 @@ export function SidebarFooter() {
           title="Delete Chat"
         >
           <i className="fas fa-trash"></i>
+        </button>
+        <button
+          className="sidebar-action-btn"
+          onClick={openImport}
+          title="Import Chat"
+        >
+          <i className="fas fa-file-import"></i>
         </button>
         <button
           className="sidebar-action-btn"
