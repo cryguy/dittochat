@@ -15,7 +15,7 @@ const {
 } = require('./routes');
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -35,6 +35,20 @@ app.use('/api/import', importRoutes);
 
 // OpenAI Compatible API
 app.use('/v1', openaiRoutes);
+
+// Error handling middleware - hide stack traces and directory paths
+app.use((err, req, res, next) => {
+  console.error('[Error]', err.message);
+
+  // Handle specific error types
+  if (err.type === 'entity.too.large') {
+    return res.status(413).json({ error: 'Request payload too large' });
+  }
+
+  // Generic error response - don't expose internal details
+  const status = err.status || err.statusCode || 500;
+  res.status(status).json({ error: err.message || 'Internal server error' });
+});
 
 // Static Files & SPA Fallback
 function setupStaticFiles() {
