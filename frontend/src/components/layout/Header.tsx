@@ -1,4 +1,5 @@
 import { useChatStore } from '../../stores/chatStore';
+import { ModelDropdown } from './ModelDropdown';
 
 interface HeaderProps {
   onMenuToggle: () => void;
@@ -12,17 +13,11 @@ export function Header({ onMenuToggle }: HeaderProps) {
       <button className="menu-toggle" onClick={onMenuToggle}>
         <i className="fas fa-bars"></i>
       </button>
-      <select
-        className="model-select"
-        value={selectedModel}
-        onChange={(e) => setSelectedModel(e.target.value)}
-      >
-        {models.map((model) => (
-          <option key={model.id} value={model.id}>
-            {model.id}
-          </option>
-        ))}
-      </select>
+      <ModelDropdown
+        models={models}
+        selectedModel={selectedModel}
+        onSelect={setSelectedModel}
+      />
     </header>
   );
 }
