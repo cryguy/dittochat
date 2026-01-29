@@ -45,10 +45,8 @@ export interface Settings {
   suffix: string;
   model: string;
   naming_model: string | null;
-}
-
-export interface ModelPromptMap {
-  [model: string]: number | null;
+  active_prompt_id: number | null;
+  active_prompt_is_global: number;
 }
 
 export interface StreamChunk {

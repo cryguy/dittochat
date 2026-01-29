@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Chat, Message, Model, Prompt, ModelPromptMap, Settings } from '../types';
+import type { Chat, Message, Model, Prompt, Settings } from '../types';
 import * as chatsApi from '../api/chats';
 import * as modelsApi from '../api/models';
 import * as settingsApi from '../api/settings';
@@ -14,7 +14,7 @@ interface ChatState {
   models: Model[];
   selectedModel: string;
   prompts: Prompt[];
-  modelPromptMap: ModelPromptMap;
+  selectedPromptId: number | null;
   defaultPrompt: { system_prompt: string; suffix: string };
   settings: Settings | null;
 
@@ -38,11 +38,11 @@ interface ChatState {
   resumeStream: () => Promise<void>;
   loadModels: () => Promise<void>;
   setSelectedModel: (model: string) => void;
+  setSelectedPrompt: (promptId: number | null) => void;
   loadSettings: () => Promise<void>;
   saveSettings: (settings: Partial<Settings>) => Promise<void>;
   loadPrompts: () => Promise<void>;
-  loadModelPromptMap: () => Promise<void>;
-  getActivePromptForModel: (model: string) => { system_prompt: string; suffix: string; name: string };
+  getActivePrompt: () => { system_prompt: string; suffix: string; name: string };
   abortStream: () => void;
 }
 
@@ -55,7 +55,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   models: [],
   selectedModel: '',
   prompts: [],
-  modelPromptMap: {},
+  selectedPromptId: null,
   defaultPrompt: { system_prompt: '', suffix: '' },
   settings: null,
   isStreaming: false,
@@ -183,7 +183,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const chat = get().chats[chatId];
     if (!chat) return;
 
-    const activePrompt = get().getActivePromptForModel(state.selectedModel);
+    const activePrompt = get().getActivePrompt();
 
     // Add user message
     const messages: Message[] = [...chat.messages, { role: 'user', content }];
@@ -331,7 +331,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       await get().sendMessage(newContent);
     } else {
       // For assistant edits, just save the edited content
-      const activePrompt = get().getActivePromptForModel(state.selectedModel);
+      const activePrompt = get().getActivePrompt();
       const updatedMessages: Message[] = [
         ...truncatedMessages,
         {
@@ -389,8 +389,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   setSelectedModel: (model: string) => {
     set({ selectedModel: model });
-    // Also save to settings
     get().saveSettings({ model });
+  },
+
+  setSelectedPrompt: (promptId: number | null) => {
+    set({ selectedPromptId: promptId });
+    const prompt = promptId ? get().prompts.find((p) => p.id === promptId) : null;
+    const isGlobal = prompt?.is_global ? 1 : 0;
+    // Store the actual DB id (positive) and the global flag separately
+    const dbId = promptId && promptId < 0 ? -promptId : promptId;
+    get().saveSettings({
+      active_prompt_id: dbId,
+      active_prompt_is_global: isGlobal,
+    });
   },
 
   loadSettings: async () => {
@@ -404,6 +415,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
     });
     if (settings.model) {
       set({ selectedModel: settings.model });
+    }
+    // Restore active prompt selection
+    if (settings.active_prompt_id != null) {
+      const promptId = settings.active_prompt_is_global
+        ? -settings.active_prompt_id
+        : settings.active_prompt_id;
+      set({ selectedPromptId: promptId });
     }
   },
 
@@ -420,16 +438,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set({ prompts });
   },
 
-  loadModelPromptMap: async () => {
-    const map = await promptsApi.fetchModelPrompts();
-    set({ modelPromptMap: map });
-  },
-
-  getActivePromptForModel: (model: string) => {
+  getActivePrompt: () => {
     const state = get();
-    const promptId = state.modelPromptMap[model];
-    if (promptId) {
-      const prompt = state.prompts.find((p) => p.id === promptId);
+    if (state.selectedPromptId != null) {
+      const prompt = state.prompts.find((p) => p.id === state.selectedPromptId);
       if (prompt) {
         return {
           system_prompt: prompt.system_prompt || '',

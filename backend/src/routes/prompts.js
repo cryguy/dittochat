@@ -75,17 +75,13 @@ router.put('/:id', authMiddleware, async (req, res) => {
 // Delete custom prompt
 router.delete('/:id', authMiddleware, async (req, res) => {
   try {
-    const { CustomPrompt, ModelPromptSetting } = getModels();
+    const { CustomPrompt } = getModels();
     const prompt = await CustomPrompt.findOne({
       where: { id: req.params.id, user_id: req.user.id }
     });
     if (!prompt) return res.status(404).json({ error: 'Prompt not found' });
 
     await prompt.destroy();
-    await ModelPromptSetting.update(
-      { prompt_id: null },
-      { where: { prompt_id: req.params.id } }
-    );
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: e.message });

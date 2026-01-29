@@ -1,12 +1,11 @@
 const express = require('express');
 const path = require('path');
-const { prompts } = require('./config');
+const { promptList } = require('./config');
 const {
   authRoutes,
   chatsRoutes,
   settingsRoutes,
   promptsRoutes,
-  modelPromptsRoutes,
   modelsRoutes,
   chatRoutes,
   openaiRoutes,
@@ -22,12 +21,12 @@ app.use('/api/auth', authRoutes);
 app.use('/api/chats', chatsRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/prompts', promptsRoutes);
-app.use('/api/model-prompts', modelPromptsRoutes);
 app.use('/api/models', modelsRoutes);
 app.get('/api/config', (req, res) => {
+  const defaultPrompt = promptList[0] || {};
   res.json({
-    system_prompt: prompts.system_prompt || '',
-    suffix: prompts.suffix_thinking || ''
+    system_prompt: defaultPrompt.system_prompt || '',
+    suffix: defaultPrompt.suffix || ''
   });
 });
 app.use('/api/chat', chatRoutes);

@@ -16,12 +16,12 @@ export function ChatArea() {
     retryStream,
     resumeStream,
     abortStream,
-    getActivePromptForModel,
+    getActivePrompt,
   } = useChatStore();
 
   const chat = currentChatId ? chats[currentChatId] : null;
   const messages = chat?.messages || [];
-  const activePrompt = getActivePromptForModel(selectedModel);
+  const activePrompt = getActivePrompt();
 
   return (
     <div className="chat-area">

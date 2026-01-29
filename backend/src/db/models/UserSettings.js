@@ -1,7 +1,7 @@
 const { DataTypes } = require('sequelize');
 
 module.exports = (sequelize) => {
-  const UserSettings = sequelize.define('UserSettings', {
+  return sequelize.define('UserSettings', {
     user_id: {
       type: DataTypes.INTEGER,
       primaryKey: true
@@ -26,11 +26,17 @@ module.exports = (sequelize) => {
     api_key: {
       type: DataTypes.TEXT,
       defaultValue: null
+    },
+    active_prompt_id: {
+      type: DataTypes.INTEGER,
+      defaultValue: null
+    },
+    active_prompt_is_global: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0
     }
   }, {
     tableName: 'user_settings',
     timestamps: false
   });
-
-  return UserSettings;
 };

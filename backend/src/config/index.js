@@ -14,7 +14,11 @@ try {
     system_prompt: p.system || p.system_prompt || '',
     suffix: p.suffix || ''
   }));
-} catch (e) {}
+  console.log(`[Config] Loaded ${promptList.length} prompts from prompt.json`);
+} catch (e) {
+  console.log(e)
+    console.warn('[Config] No prompt.json found or invalid format, using empty prompt list');
+}
 
 module.exports = {
   BASE_URL,

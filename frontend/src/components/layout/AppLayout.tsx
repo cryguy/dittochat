@@ -22,7 +22,6 @@ export function AppLayout() {
     loadModels,
     loadSettings,
     loadPrompts,
-    loadModelPromptMap,
   } = useChatStore();
 
   // Initialize app data
@@ -32,10 +31,9 @@ export function AppLayout() {
       await loadChats();
       await loadSettings();
       await loadPrompts();
-      await loadModelPromptMap();
     };
     init();
-  }, [loadModels, loadChats, loadSettings, loadPrompts, loadModelPromptMap]);
+  }, [loadModels, loadChats, loadSettings, loadPrompts]);
 
   // Handle route changes - sync URL to state and navigate to new chats
   useEffect(() => {

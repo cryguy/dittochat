@@ -4,17 +4,14 @@ import * as promptsApi from '../../api/prompts';
 
 export function PromptSettings() {
   const {
-    models,
     prompts,
-    modelPromptMap,
+    selectedPromptId,
     defaultPrompt,
     loadPrompts,
-    loadModelPromptMap,
     saveSettings,
   } = useChatStore();
 
-  const [selectedModel, setSelectedModel] = useState('');
-  const [selectedPromptId, setSelectedPromptId] = useState<number | null>(null);
+  const [editingPromptId, setEditingPromptId] = useState<number | null>(null);
   const [promptName, setPromptName] = useState('Default');
   const [description, setDescription] = useState('');
   const [systemPrompt, setSystemPrompt] = useState('');
@@ -26,22 +23,12 @@ export function PromptSettings() {
   const userPrompts = prompts.filter((p) => !p.is_global);
   const globalPrompts = prompts.filter((p) => p.is_global);
 
-  // Initialize with first model
+  // Load current active prompt into editor
   useEffect(() => {
-    if (models.length > 0 && !selectedModel) {
-      setSelectedModel(models[0].id);
-    }
-  }, [models, selectedModel]);
-
-  // Load prompt for selected model
-  useEffect(() => {
-    if (!selectedModel) return;
-
-    const promptId = modelPromptMap[selectedModel];
-    if (promptId) {
-      const prompt = prompts.find((p) => p.id === promptId);
+    if (selectedPromptId != null) {
+      const prompt = prompts.find((p) => p.id === selectedPromptId);
       if (prompt) {
-        setSelectedPromptId(prompt.id);
+        setEditingPromptId(prompt.id);
         setPromptName(prompt.name);
         setDescription(prompt.description || '');
         setSystemPrompt(prompt.system_prompt || '');
@@ -53,18 +40,18 @@ export function PromptSettings() {
     }
 
     // Fall back to default
-    setSelectedPromptId(null);
+    setEditingPromptId(null);
     setPromptName('Default');
     setDescription('');
     setSystemPrompt(defaultPrompt.system_prompt);
     setSuffix(defaultPrompt.suffix);
     setIsDefault(true);
     setIsGlobal(false);
-  }, [selectedModel, modelPromptMap, prompts, defaultPrompt]);
+  }, [selectedPromptId, prompts, defaultPrompt]);
 
   const handlePromptSelect = (value: string) => {
     if (value === 'default') {
-      setSelectedPromptId(null);
+      setEditingPromptId(null);
       setPromptName('Default');
       setDescription('');
       setSystemPrompt(defaultPrompt.system_prompt);
@@ -75,7 +62,7 @@ export function PromptSettings() {
       const id = parseInt(value, 10);
       const prompt = prompts.find((p) => p.id === id);
       if (prompt) {
-        setSelectedPromptId(prompt.id);
+        setEditingPromptId(prompt.id);
         setPromptName(prompt.name);
         setDescription(prompt.description || '');
         setSystemPrompt(prompt.system_prompt || '');
@@ -92,16 +79,17 @@ export function PromptSettings() {
 
     const newPrompt = await promptsApi.createPrompt(name, '', '', '');
     await loadPrompts();
-    setSelectedPromptId(newPrompt.id);
+    setEditingPromptId(newPrompt.id);
     setPromptName(newPrompt.name);
     setDescription('');
     setSystemPrompt('');
     setSuffix('');
     setIsDefault(false);
+    setIsGlobal(false);
   };
 
   const handleDeletePrompt = async () => {
-    if (selectedPromptId === null) {
+    if (editingPromptId === null) {
       window.alert('Cannot delete the default prompt');
       return;
     }
@@ -113,12 +101,11 @@ export function PromptSettings() {
 
     if (!window.confirm('Delete this prompt?')) return;
 
-    await promptsApi.deletePrompt(selectedPromptId);
+    await promptsApi.deletePrompt(editingPromptId);
     await loadPrompts();
-    await loadModelPromptMap();
 
     // Reset to default
-    setSelectedPromptId(null);
+    setEditingPromptId(null);
     setPromptName('Default');
     setDescription('');
     setSystemPrompt(defaultPrompt.system_prompt);
@@ -128,7 +115,7 @@ export function PromptSettings() {
   };
 
   const handleSave = async () => {
-    if (selectedPromptId === null) {
+    if (editingPromptId === null) {
       // Save default prompt
       await saveSettings({
         system_prompt: systemPrompt,
@@ -137,7 +124,7 @@ export function PromptSettings() {
     } else if (!isGlobal) {
       // Save custom prompt (can't edit global prompts)
       await promptsApi.updatePrompt(
-        selectedPromptId,
+        editingPromptId,
         promptName,
         description,
         systemPrompt,
@@ -145,54 +132,23 @@ export function PromptSettings() {
       );
       await loadPrompts();
     }
-
-    // Save model-prompt mapping
-    await promptsApi.setModelPrompt(selectedModel, selectedPromptId);
-    await loadModelPromptMap();
   };
-
-  const activePromptId = modelPromptMap[selectedModel] || null;
 
   return (
     <div className="prompt-settings">
       <div className="settings-group">
-        <label>Model</label>
-        <select
-          value={selectedModel}
-          onChange={(e) => setSelectedModel(e.target.value)}
-        >
-          {models.map((model) => {
-            const promptId = modelPromptMap[model.id];
-            let presetName = 'Default';
-            if (promptId) {
-              const preset = prompts.find((p) => p.id === promptId);
-              if (preset) presetName = preset.name;
-            }
-            return (
-              <option key={model.id} value={model.id}>
-                {model.id} → {presetName}
-              </option>
-            );
-          })}
-        </select>
-      </div>
-
-      <div className="settings-group">
         <label>Prompt Preset</label>
         <div className="prompt-selector">
           <select
-            value={selectedPromptId?.toString() || 'default'}
+            value={editingPromptId?.toString() || 'default'}
             onChange={(e) => handlePromptSelect(e.target.value)}
           >
-            <option value="default">
-              Default{activePromptId === null ? ' (Active)' : ''}
-            </option>
+            <option value="default">Default</option>
             {globalPrompts.length > 0 && (
               <optgroup label="Global Prompts">
                 {globalPrompts.map((prompt) => (
                   <option key={prompt.id} value={prompt.id}>
                     {prompt.name}
-                    {activePromptId === prompt.id ? ' (Active)' : ''}
                   </option>
                 ))}
               </optgroup>
@@ -202,7 +158,6 @@ export function PromptSettings() {
                 {userPrompts.map((prompt) => (
                   <option key={prompt.id} value={prompt.id}>
                     {prompt.name}
-                    {activePromptId === prompt.id ? ' (Active)' : ''}
                   </option>
                 ))}
               </optgroup>
@@ -262,9 +217,11 @@ export function PromptSettings() {
         />
       </div>
 
-      <button className="btn-primary" onClick={handleSave}>
-        {isGlobal ? `Apply to ${selectedModel}` : `Save & Apply to ${selectedModel}`}
-      </button>
+      {!isGlobal && (
+        <button className="btn-primary" onClick={handleSave}>
+          Save
+        </button>
+      )}
     </div>
   );
 }

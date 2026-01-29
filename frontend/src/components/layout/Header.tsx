@@ -1,12 +1,20 @@
 import { useChatStore } from '../../stores/chatStore';
 import { ModelDropdown } from './ModelDropdown';
+import { PromptDropdown } from './PromptDropdown';
 
 interface HeaderProps {
   onMenuToggle: () => void;
 }
 
 export function Header({ onMenuToggle }: HeaderProps) {
-  const { models, selectedModel, setSelectedModel } = useChatStore();
+  const {
+    models,
+    selectedModel,
+    setSelectedModel,
+    prompts,
+    selectedPromptId,
+    setSelectedPrompt,
+  } = useChatStore();
 
   return (
     <header className="header">
@@ -17,6 +25,11 @@ export function Header({ onMenuToggle }: HeaderProps) {
         models={models}
         selectedModel={selectedModel}
         onSelect={setSelectedModel}
+      />
+      <PromptDropdown
+        prompts={prompts}
+        selectedPromptId={selectedPromptId}
+        onSelect={setSelectedPrompt}
       />
     </header>
   );

@@ -18,7 +18,6 @@ async function initDatabase() {
   models.Message = require('./models/Message')(sequelize);
   models.UserSettings = require('./models/UserSettings')(sequelize);
   models.CustomPrompt = require('./models/CustomPrompt')(sequelize);
-  models.ModelPromptSetting = require('./models/ModelPromptSetting')(sequelize);
   models.GlobalPrompt = require('./models/GlobalPrompt')(sequelize);
   models.AppSetting = require('./models/AppSetting')(sequelize);
   models.InviteCode = require('./models/InviteCode')(sequelize);
@@ -38,9 +37,6 @@ async function initDatabase() {
 
   models.User.hasMany(models.CustomPrompt, { foreignKey: 'user_id', onDelete: 'CASCADE' });
   models.CustomPrompt.belongsTo(models.User, { foreignKey: 'user_id' });
-
-  models.User.hasMany(models.ModelPromptSetting, { foreignKey: 'user_id', onDelete: 'CASCADE' });
-  models.ModelPromptSetting.belongsTo(models.User, { foreignKey: 'user_id' });
 
   models.User.hasMany(models.InviteCode, { foreignKey: 'created_by', onDelete: 'CASCADE' });
   models.InviteCode.belongsTo(models.User, { foreignKey: 'created_by' });
