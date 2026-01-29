@@ -11,14 +11,14 @@ function authMiddleware(req, res, next) {
 
   const now = Math.floor(Date.now() / 1000);
   const session = dbGet(`
-    SELECT s.user_id, u.username FROM sessions s
+    SELECT s.user_id, u.username, u.is_admin FROM sessions s
     JOIN users u ON s.user_id = u.id
     WHERE s.token = ? AND s.expires_at > ?
   `, [token, now]);
 
   if (!session) return res.status(401).json({ error: 'Session expired' });
 
-  req.user = { id: session.user_id, username: session.username };
+  req.user = { id: session.user_id, username: session.username, isAdmin: !!session.is_admin };
   req.token = token;
   next();
 }
@@ -29,11 +29,11 @@ function optionalAuthMiddleware(req, res, next) {
     const token = authHeader.replace('Bearer ', '');
     const now = Math.floor(Date.now() / 1000);
     const session = dbGet(`
-      SELECT s.user_id, u.username FROM sessions s
+      SELECT s.user_id, u.username, u.is_admin FROM sessions s
       JOIN users u ON s.user_id = u.id
       WHERE s.token = ? AND s.expires_at > ?
     `, [token, now]);
-    if (session) req.user = { id: session.user_id, username: session.username };
+    if (session) req.user = { id: session.user_id, username: session.username, isAdmin: !!session.is_admin };
   }
   next();
 }

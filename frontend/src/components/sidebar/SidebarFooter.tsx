@@ -1,12 +1,12 @@
 import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext';
-import { useImport } from '../../contexts/ImportContext';
+import { useAdmin } from '../../contexts/AdminContext';
 import { useChatStore } from '../../stores/chatStore';
 
 export function SidebarFooter() {
-  const { username, logout } = useAuth();
+  const { username, logout, isAdmin } = useAuth();
   const { openSettings } = useSettings();
-  const { openImport } = useImport();
+  const { openAdminPanel } = useAdmin();
   const { currentChatId, deleteChat } = useChatStore();
 
   const handleDeleteChat = () => {
@@ -17,9 +17,14 @@ export function SidebarFooter() {
 
   return (
     <div className="sidebar-footer">
-      <div className="user-info">
-        <i className="fas fa-user"></i>
-        <span>{username}</span>
+      <div className="user-card">
+        <div className="user-avatar">
+          {username?.charAt(0).toUpperCase()}
+        </div>
+        <div className="user-details">
+          <span className="user-name">{username}</span>
+          {isAdmin && <span className="admin-tag">Admin</span>}
+        </div>
       </div>
       <div className="sidebar-actions">
         <button
@@ -30,13 +35,15 @@ export function SidebarFooter() {
         >
           <i className="fas fa-trash"></i>
         </button>
-        <button
-          className="sidebar-action-btn"
-          onClick={openImport}
-          title="Import Chat"
-        >
-          <i className="fas fa-file-import"></i>
-        </button>
+        {isAdmin && (
+          <button
+            className="sidebar-action-btn"
+            onClick={openAdminPanel}
+            title="Admin Panel"
+          >
+            <i className="fas fa-user-shield"></i>
+          </button>
+        )}
         <button
           className="sidebar-action-btn"
           onClick={openSettings}

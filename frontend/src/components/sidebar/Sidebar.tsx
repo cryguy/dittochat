@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { ChatList } from './ChatList';
 import { SidebarFooter } from './SidebarFooter';
+import { useImport } from '../../contexts/ImportContext';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -10,6 +11,7 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, isCollapsed, onClose }: SidebarProps) {
   const navigate = useNavigate();
+  const { openImport } = useImport();
 
   const handleNewChat = () => {
     navigate('/');
@@ -24,6 +26,9 @@ export function Sidebar({ isOpen, isCollapsed, onClose }: SidebarProps) {
         <button className="new-chat-btn" onClick={handleNewChat}>
           <i className="fas fa-plus"></i>
           <span>New Chat</span>
+        </button>
+        <button className="import-btn" onClick={openImport} title="Import Chat">
+          <i className="fas fa-file-import"></i>
         </button>
       </div>
       <ChatList onChatSelect={onClose} />

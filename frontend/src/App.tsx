@@ -2,8 +2,10 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SettingsProvider } from './contexts/SettingsContext';
 import { ImportProvider } from './contexts/ImportContext';
+import { AdminProvider } from './contexts/AdminContext';
 import { AuthScreen } from './components/auth/AuthScreen';
 import { AppLayout } from './components/layout/AppLayout';
+import { AdminPanel } from './components/admin/AdminPanel';
 import './styles/index.css';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -73,7 +75,10 @@ export function App() {
       <AuthProvider>
         <SettingsProvider>
           <ImportProvider>
-            <AppRoutes />
+            <AdminProvider>
+              <AppRoutes />
+              <AdminPanel />
+            </AdminProvider>
           </ImportProvider>
         </SettingsProvider>
       </AuthProvider>

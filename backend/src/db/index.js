@@ -101,10 +101,27 @@ async function initDatabase() {
       created_at INTEGER DEFAULT (strftime('%s', 'now'))
     );
 
+    CREATE TABLE IF NOT EXISTS app_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS invite_codes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      code TEXT UNIQUE NOT NULL,
+      created_by INTEGER NOT NULL,
+      max_uses INTEGER DEFAULT 1,
+      uses INTEGER DEFAULT 0,
+      expires_at INTEGER DEFAULT NULL,
+      created_at INTEGER DEFAULT (strftime('%s', 'now')),
+      FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
+    );
+
     CREATE INDEX IF NOT EXISTS idx_custom_prompts_user ON custom_prompts(user_id);
     CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
     CREATE INDEX IF NOT EXISTS idx_chats_user ON chats(user_id);
     CREATE INDEX IF NOT EXISTS idx_messages_chat ON messages(chat_id);
+    CREATE INDEX IF NOT EXISTS idx_invite_codes_code ON invite_codes(code);
   `);
 
   // Migrations
@@ -120,6 +137,24 @@ async function initDatabase() {
   // Migration: add is_global column to model_prompt_settings
   const mpsCols = db.exec("PRAGMA table_info(model_prompt_settings)")[0]?.values.map(r => r[1]) || [];
   if (!mpsCols.includes('is_global')) db.run('ALTER TABLE model_prompt_settings ADD COLUMN is_global INTEGER DEFAULT 0');
+
+  // Migration: add is_admin column to users table
+  const userCols = db.exec("PRAGMA table_info(users)")[0]?.values.map(r => r[1]) || [];
+  if (!userCols.includes('is_admin')) {
+    db.run('ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0');
+    // Make the first user an admin if any users exist
+    const firstUser = db.exec("SELECT id FROM users ORDER BY id LIMIT 1");
+    if (firstUser.length > 0 && firstUser[0]?.values.length > 0) {
+      db.run('UPDATE users SET is_admin = 1 WHERE id = ?', [firstUser[0].values[0][0]]);
+    }
+  }
+
+  // Seed default app settings if not exist
+  const regSetting = db.exec("SELECT value FROM app_settings WHERE key = 'registration_enabled'");
+  if (regSetting.length === 0 || regSetting[0]?.values.length === 0) {
+    db.run("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('registration_enabled', 'true')");
+    db.run("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('invite_only', 'false')");
+  }
 
   // Seed global prompts from prompt.json if not exists
   const { prompts } = require('../config');

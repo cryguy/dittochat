@@ -7,6 +7,7 @@ const modelsRoutes = require('./models');
 const chatRoutes = require('./chat');
 const openaiRoutes = require('./openai');
 const importRoutes = require('./import');
+const adminRoutes = require('./admin');
 
 module.exports = {
   authRoutes,
@@ -17,5 +18,6 @@ module.exports = {
   modelsRoutes,
   chatRoutes,
   openaiRoutes,
-  importRoutes
+  importRoutes,
+  adminRoutes
 };
