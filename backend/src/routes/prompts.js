@@ -11,12 +11,12 @@ router.get('/', authMiddleware, async (req, res) => {
 
     const userPrompts = await CustomPrompt.findAll({
       where: { user_id: req.user.id },
-      attributes: ['id', 'name', 'system_prompt', 'suffix'],
+      attributes: ['id', 'name', 'description', 'system_prompt', 'suffix'],
       order: [['name', 'ASC']],
       raw: true
     });
     const globalPrompts = await GlobalPrompt.findAll({
-      attributes: ['id', 'name', 'system_prompt', 'suffix'],
+      attributes: ['id', 'name', 'description', 'system_prompt', 'suffix'],
       order: [['name', 'ASC']],
       raw: true
     });
@@ -31,7 +31,7 @@ router.get('/', authMiddleware, async (req, res) => {
 
 // Create custom prompt
 router.post('/', authMiddleware, async (req, res) => {
-  const { name, system_prompt, suffix } = req.body;
+  const { name, description, system_prompt, suffix } = req.body;
   if (!name) return res.status(400).json({ error: 'Name required' });
 
   try {
@@ -39,10 +39,11 @@ router.post('/', authMiddleware, async (req, res) => {
     const prompt = await CustomPrompt.create({
       user_id: req.user.id,
       name,
+      description: description || '',
       system_prompt: system_prompt || '',
       suffix: suffix || ''
     });
-    res.json({ id: prompt.id, name, system_prompt: system_prompt || '', suffix: suffix || '' });
+    res.json({ id: prompt.id, name, description: description || '', system_prompt: system_prompt || '', suffix: suffix || '' });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -50,7 +51,7 @@ router.post('/', authMiddleware, async (req, res) => {
 
 // Update custom prompt
 router.put('/:id', authMiddleware, async (req, res) => {
-  const { name, system_prompt, suffix } = req.body;
+  const { name, description, system_prompt, suffix } = req.body;
 
   try {
     const { CustomPrompt } = getModels();
@@ -61,6 +62,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
     await prompt.update({
       name: name || prompt.name,
+      description: description ?? prompt.description,
       system_prompt: system_prompt ?? prompt.system_prompt,
       suffix: suffix ?? prompt.suffix
     });

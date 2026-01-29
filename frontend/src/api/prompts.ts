@@ -7,6 +7,7 @@ export async function fetchPrompts(): Promise<Prompt[]> {
 
 export async function createPrompt(
   name: string,
+  description: string,
   systemPrompt: string,
   suffix: string
 ): Promise<Prompt> {
@@ -14,6 +15,7 @@ export async function createPrompt(
     method: 'POST',
     body: JSON.stringify({
       name,
+      description,
       system_prompt: systemPrompt,
       suffix,
     }),
@@ -23,6 +25,7 @@ export async function createPrompt(
 export async function updatePrompt(
   id: number,
   name: string,
+  description: string,
   systemPrompt: string,
   suffix: string
 ): Promise<void> {
@@ -30,6 +33,7 @@ export async function updatePrompt(
     method: 'PUT',
     body: JSON.stringify({
       name,
+      description,
       system_prompt: systemPrompt,
       suffix,
     }),

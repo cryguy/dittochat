@@ -1,7 +1,7 @@
 const { DataTypes } = require('sequelize');
 
 module.exports = (sequelize) => {
-  const GlobalPrompt = sequelize.define('GlobalPrompt', {
+  return sequelize.define('GlobalPrompt', {
     id: {
       type: DataTypes.INTEGER,
       primaryKey: true,
@@ -11,6 +11,10 @@ module.exports = (sequelize) => {
       type: DataTypes.TEXT,
       allowNull: false,
       unique: true
+    },
+    description: {
+      type: DataTypes.TEXT,
+      defaultValue: ''
     },
     system_prompt: {
       type: DataTypes.TEXT
@@ -26,6 +30,4 @@ module.exports = (sequelize) => {
     tableName: 'global_prompts',
     timestamps: false
   });
-
-  return GlobalPrompt;
 };

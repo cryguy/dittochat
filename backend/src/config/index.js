@@ -5,13 +5,21 @@ const API_KEY = process.env.OPENAI_API_KEY || 'sk-placeholder';
 const DB_PATH = process.env.DB_PATH || path.join(process.cwd(), 'chat.db');
 const PORT = process.env.PORT || 3000;
 
-let prompts = { system_prompt: '', suffix_thinking: '' };
-try { prompts = require('../../prompt.json'); } catch (e) {}
+let promptList = [];
+try {
+  const promptFile = require('../../prompt.json');
+  promptList = (promptFile.prompts || []).map(p => ({
+    name: p.name,
+    description: p.description || '',
+    system_prompt: p.system || p.system_prompt || '',
+    suffix: p.suffix || ''
+  }));
+} catch (e) {}
 
 module.exports = {
   BASE_URL,
   API_KEY,
   DB_PATH,
   PORT,
-  prompts
+  promptList
 };

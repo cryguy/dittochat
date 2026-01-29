@@ -62,14 +62,15 @@ async function initDatabase() {
   });
 
   // Seed global prompts from prompt.json
-  const { prompts } = require('../config');
-  if (prompts.system_prompt || prompts.suffix_thinking) {
+  const { promptList } = require('../config');
+  for (const p of promptList) {
     await models.GlobalPrompt.findOrCreate({
-      where: { name: 'system-default' },
+      where: { name: p.name },
       defaults: {
-        name: 'system-default',
-        system_prompt: prompts.system_prompt || '',
-        suffix: prompts.suffix_thinking || ''
+        name: p.name,
+        description: p.description || '',
+        system_prompt: p.system_prompt || '',
+        suffix: p.suffix || ''
       }
     });
   }

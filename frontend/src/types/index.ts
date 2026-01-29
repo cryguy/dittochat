@@ -34,6 +34,7 @@ export interface Model {
 export interface Prompt {
   id: number;
   name: string;
+  description: string;
   system_prompt: string;
   suffix: string;
   is_global?: number;

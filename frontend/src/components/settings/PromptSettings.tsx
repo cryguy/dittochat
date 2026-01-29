@@ -16,6 +16,7 @@ export function PromptSettings() {
   const [selectedModel, setSelectedModel] = useState('');
   const [selectedPromptId, setSelectedPromptId] = useState<number | null>(null);
   const [promptName, setPromptName] = useState('Default');
+  const [description, setDescription] = useState('');
   const [systemPrompt, setSystemPrompt] = useState('');
   const [suffix, setSuffix] = useState('');
   const [isDefault, setIsDefault] = useState(true);
@@ -42,6 +43,7 @@ export function PromptSettings() {
       if (prompt) {
         setSelectedPromptId(prompt.id);
         setPromptName(prompt.name);
+        setDescription(prompt.description || '');
         setSystemPrompt(prompt.system_prompt || '');
         setSuffix(prompt.suffix || '');
         setIsDefault(false);
@@ -53,6 +55,7 @@ export function PromptSettings() {
     // Fall back to default
     setSelectedPromptId(null);
     setPromptName('Default');
+    setDescription('');
     setSystemPrompt(defaultPrompt.system_prompt);
     setSuffix(defaultPrompt.suffix);
     setIsDefault(true);
@@ -63,6 +66,7 @@ export function PromptSettings() {
     if (value === 'default') {
       setSelectedPromptId(null);
       setPromptName('Default');
+      setDescription('');
       setSystemPrompt(defaultPrompt.system_prompt);
       setSuffix(defaultPrompt.suffix);
       setIsDefault(true);
@@ -73,6 +77,7 @@ export function PromptSettings() {
       if (prompt) {
         setSelectedPromptId(prompt.id);
         setPromptName(prompt.name);
+        setDescription(prompt.description || '');
         setSystemPrompt(prompt.system_prompt || '');
         setSuffix(prompt.suffix || '');
         setIsDefault(false);
@@ -85,10 +90,11 @@ export function PromptSettings() {
     const name = window.prompt('Enter prompt name:');
     if (!name) return;
 
-    const newPrompt = await promptsApi.createPrompt(name, '', '');
+    const newPrompt = await promptsApi.createPrompt(name, '', '', '');
     await loadPrompts();
     setSelectedPromptId(newPrompt.id);
     setPromptName(newPrompt.name);
+    setDescription('');
     setSystemPrompt('');
     setSuffix('');
     setIsDefault(false);
@@ -114,6 +120,7 @@ export function PromptSettings() {
     // Reset to default
     setSelectedPromptId(null);
     setPromptName('Default');
+    setDescription('');
     setSystemPrompt(defaultPrompt.system_prompt);
     setSuffix(defaultPrompt.suffix);
     setIsDefault(true);
@@ -132,6 +139,7 @@ export function PromptSettings() {
       await promptsApi.updatePrompt(
         selectedPromptId,
         promptName,
+        description,
         systemPrompt,
         suffix
       );
@@ -220,6 +228,17 @@ export function PromptSettings() {
           value={promptName}
           onChange={(e) => setPromptName(e.target.value)}
           disabled={isDefault || isGlobal}
+        />
+      </div>
+
+      <div className="settings-group">
+        <label>Description{isGlobal ? ' (Read-only)' : ''}</label>
+        <input
+          type="text"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          disabled={isDefault || isGlobal}
+          placeholder="Short description of this prompt preset"
         />
       </div>
 

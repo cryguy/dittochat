@@ -79,12 +79,12 @@ router.get('/:model/effective', authMiddleware, async (req, res) => {
       if (modelSetting.is_global) {
         const prompt = await GlobalPrompt.findByPk(modelSetting.prompt_id, { raw: true });
         if (prompt) {
-          return res.json({ source: 'global', prompt_id: -prompt.id, name: prompt.name, system_prompt: prompt.system_prompt, suffix: prompt.suffix });
+          return res.json({ source: 'global', prompt_id: -prompt.id, name: prompt.name, description: prompt.description || '', system_prompt: prompt.system_prompt, suffix: prompt.suffix });
         }
       } else {
         const prompt = await CustomPrompt.findByPk(modelSetting.prompt_id, { raw: true });
         if (prompt) {
-          return res.json({ source: 'custom', prompt_id: prompt.id, name: prompt.name, system_prompt: prompt.system_prompt, suffix: prompt.suffix });
+          return res.json({ source: 'custom', prompt_id: prompt.id, name: prompt.name, description: prompt.description || '', system_prompt: prompt.system_prompt, suffix: prompt.suffix });
         }
       }
     }

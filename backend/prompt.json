@@ -1,4 +1,10 @@
 {
-  "system_prompt": "",
-  "suffix_thinking": ""
+  "prompts": [
+    {
+      "name": "default",
+      "description": "You are a helpful assistant.",
+      "system": "You are a helpful assistant.",
+      "suffix": ""
+    }
+  ]
 }
