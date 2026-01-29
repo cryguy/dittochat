@@ -1,11 +1,11 @@
 const express = require('express');
-const { getDb, saveDatabase } = require('../db');
+const { getModels } = require('../db');
 const { authMiddleware } = require('../middleware/auth');
 
 const router = express.Router();
 
 // POST /api/import - Import a chat from parsed markdown data
-router.post('/', authMiddleware, (req, res) => {
+router.post('/', authMiddleware, async (req, res) => {
   const { id, title, messages, model, preset } = req.body;
 
   if (!id) {
@@ -20,31 +20,29 @@ router.post('/', authMiddleware, (req, res) => {
     return res.status(400).json({ error: 'Messages required' });
   }
 
-  const db = getDb();
-  const now = Math.floor(Date.now() / 1000);
-
   try {
+    const { Chat, Message } = getModels();
+    const now = Math.floor(Date.now() / 1000);
+
     // Create the chat
-    db.run(
-      'INSERT INTO chats (id, user_id, title, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
-      [id, req.user.id, title, now, now]
-    );
+    await Chat.create({
+      id,
+      user_id: req.user.id,
+      title,
+      created_at: now,
+      updated_at: now
+    });
 
     // Insert all messages
-    for (const msg of messages) {
+    const messageRecords = messages.map(msg => {
       const role = msg.role || 'user';
       const content = msg.content !== undefined ? msg.content : '';
-      // Use provided model/preset for assistant messages, null for user messages
       const msgModel = role === 'assistant' ? (model || null) : null;
       const msgPreset = role === 'assistant' ? (preset || null) : null;
+      return { chat_id: id, role, content, model: msgModel, preset: msgPreset };
+    });
 
-      db.run(
-        'INSERT INTO messages (chat_id, role, content, model, preset) VALUES (?, ?, ?, ?, ?)',
-        [id, role, content, msgModel, msgPreset]
-      );
-    }
-
-    saveDatabase();
+    await Message.bulkCreate(messageRecords);
 
     res.json({
       id,

@@ -1,7 +1,7 @@
-// Load .env file if available (not in SEA builds)
+// Load .env file if available
 try { require('dotenv').config(); } catch {}
 
-// Parse CLI arguments (for SEA builds)
+// Parse CLI arguments
 const args = process.argv.slice(2);
 for (let i = 0; i < args.length; i++) {
   if ((args[i] === '--base-url' || args[i] === '-b') && args[i + 1]) {
@@ -28,12 +28,11 @@ Options:
 }
 
 const { PORT, DB_PATH } = require('./src/config');
-const { initDatabase, startAutoSave, startSessionCleanup, closeDatabase } = require('./src/db');
+const { initDatabase, startSessionCleanup, closeDatabase } = require('./src/db');
 const { app, setupStaticFiles } = require('./src/app');
 
 async function start() {
   await initDatabase();
-  startAutoSave();
   startSessionCleanup();
   setupStaticFiles();
 
@@ -45,7 +44,7 @@ async function start() {
 
 start().catch(console.error);
 
-process.on('SIGINT', () => {
-  closeDatabase();
+process.on('SIGINT', async () => {
+  await closeDatabase();
   process.exit(0);
 });

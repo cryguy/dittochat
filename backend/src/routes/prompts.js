@@ -1,55 +1,93 @@
 const express = require('express');
-const { dbGet, dbAll, dbRun, getDb, saveDatabase } = require('../db');
+const { getModels } = require('../db');
 const { authMiddleware } = require('../middleware/auth');
 
 const router = express.Router();
 
 // Get all prompts for user (user prompts + global prompts)
-router.get('/', authMiddleware, (req, res) => {
-  const userPrompts = dbAll('SELECT id, name, system_prompt, suffix, 0 as is_global FROM custom_prompts WHERE user_id = ? ORDER BY name', [req.user.id]);
-  const globalPrompts = dbAll('SELECT id, name, system_prompt, suffix, 1 as is_global FROM global_prompts ORDER BY name');
-  // Global prompts use negative IDs to distinguish them
-  const globalWithNegativeIds = globalPrompts.map(p => ({ ...p, id: -p.id }));
-  res.json([...userPrompts, ...globalWithNegativeIds]);
+router.get('/', authMiddleware, async (req, res) => {
+  try {
+    const { CustomPrompt, GlobalPrompt } = getModels();
+
+    const userPrompts = await CustomPrompt.findAll({
+      where: { user_id: req.user.id },
+      attributes: ['id', 'name', 'system_prompt', 'suffix'],
+      order: [['name', 'ASC']],
+      raw: true
+    });
+    const globalPrompts = await GlobalPrompt.findAll({
+      attributes: ['id', 'name', 'system_prompt', 'suffix'],
+      order: [['name', 'ASC']],
+      raw: true
+    });
+
+    const userWithFlag = userPrompts.map(p => ({ ...p, is_global: 0 }));
+    const globalWithNegativeIds = globalPrompts.map(p => ({ ...p, id: -p.id, is_global: 1 }));
+    res.json([...userWithFlag, ...globalWithNegativeIds]);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // Create custom prompt
-router.post('/', authMiddleware, (req, res) => {
+router.post('/', authMiddleware, async (req, res) => {
   const { name, system_prompt, suffix } = req.body;
   if (!name) return res.status(400).json({ error: 'Name required' });
 
-  const result = dbRun(
-    'INSERT INTO custom_prompts (user_id, name, system_prompt, suffix) VALUES (?, ?, ?, ?)',
-    [req.user.id, name, system_prompt || '', suffix || '']
-  );
-  res.json({ id: result.lastInsertRowid, name, system_prompt: system_prompt || '', suffix: suffix || '' });
+  try {
+    const { CustomPrompt } = getModels();
+    const prompt = await CustomPrompt.create({
+      user_id: req.user.id,
+      name,
+      system_prompt: system_prompt || '',
+      suffix: suffix || ''
+    });
+    res.json({ id: prompt.id, name, system_prompt: system_prompt || '', suffix: suffix || '' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // Update custom prompt
-router.put('/:id', authMiddleware, (req, res) => {
+router.put('/:id', authMiddleware, async (req, res) => {
   const { name, system_prompt, suffix } = req.body;
-  const prompt = dbGet('SELECT * FROM custom_prompts WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
-  if (!prompt) return res.status(404).json({ error: 'Prompt not found' });
 
-  const db = getDb();
-  db.run(
-    'UPDATE custom_prompts SET name = ?, system_prompt = ?, suffix = ? WHERE id = ?',
-    [name || prompt.name, system_prompt ?? prompt.system_prompt, suffix ?? prompt.suffix, req.params.id]
-  );
-  saveDatabase();
-  res.json({ success: true });
+  try {
+    const { CustomPrompt } = getModels();
+    const prompt = await CustomPrompt.findOne({
+      where: { id: req.params.id, user_id: req.user.id }
+    });
+    if (!prompt) return res.status(404).json({ error: 'Prompt not found' });
+
+    await prompt.update({
+      name: name || prompt.name,
+      system_prompt: system_prompt ?? prompt.system_prompt,
+      suffix: suffix ?? prompt.suffix
+    });
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // Delete custom prompt
-router.delete('/:id', authMiddleware, (req, res) => {
-  const prompt = dbGet('SELECT * FROM custom_prompts WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
-  if (!prompt) return res.status(404).json({ error: 'Prompt not found' });
+router.delete('/:id', authMiddleware, async (req, res) => {
+  try {
+    const { CustomPrompt, ModelPromptSetting } = getModels();
+    const prompt = await CustomPrompt.findOne({
+      where: { id: req.params.id, user_id: req.user.id }
+    });
+    if (!prompt) return res.status(404).json({ error: 'Prompt not found' });
 
-  const db = getDb();
-  db.run('DELETE FROM custom_prompts WHERE id = ?', [req.params.id]);
-  db.run('UPDATE model_prompt_settings SET prompt_id = NULL WHERE prompt_id = ?', [req.params.id]);
-  saveDatabase();
-  res.json({ success: true });
+    await prompt.destroy();
+    await ModelPromptSetting.update(
+      { prompt_id: null },
+      { where: { prompt_id: req.params.id } }
+    );
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 module.exports = router;

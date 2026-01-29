@@ -3,7 +3,7 @@ const { authMiddleware } = require('../middleware/auth');
 const { getOpenAIClient } = require('../services/openai');
 const { buildApiMessages } = require('../utils/messages');
 const { initStream, appendChunk, markDone, getStream, abortStream } = require('../services/streamBuffer');
-const { getDb, dbGet, dbAll, saveDatabase } = require('../db');
+const { getModels } = require('../db');
 
 const router = express.Router();
 
@@ -37,53 +37,68 @@ router.post('/stream', authMiddleware, async (req, res) => {
   const client = getOpenAIClient();
   const userId = req.user.id;
 
-  const saveToDb = () => {
+  const saveToDb = async () => {
     if (!chatId) return;
     const streamData = getStream(chatId);
     if (streamData && streamData.content) {
-      const db = getDb();
-      db.run(
-        'INSERT INTO messages (chat_id, role, content, model, preset) VALUES (?, ?, ?, ?, ?)',
-        [chatId, 'assistant', streamData.content, model || null, preset || null]
-      );
-      db.run(
-        'UPDATE chats SET updated_at = ? WHERE id = ?',
-        [Math.floor(Date.now() / 1000), chatId]
-      );
-      saveDatabase();
-      console.log(`[Chat Stream] Saved assistant message to DB for chat ${chatId} (${streamData.content.length} chars)`);
+      try {
+        const { Message, Chat } = getModels();
+        await Message.create({
+          chat_id: chatId,
+          role: 'assistant',
+          content: streamData.content,
+          model: model || null,
+          preset: preset || null
+        });
+        await Chat.update(
+          { updated_at: Math.floor(Date.now() / 1000) },
+          { where: { id: chatId } }
+        );
+        console.log(`[Chat Stream] Saved assistant message to DB for chat ${chatId} (${streamData.content.length} chars)`);
+      } catch (e) {
+        console.error(`[Chat Stream] Error saving to DB:`, e.message);
+      }
     }
     markDone(chatId);
 
     // Generate title asynchronously (fire and forget) for first exchange
-    const chat = dbGet('SELECT title FROM chats WHERE id = ?', [chatId]);
-    if (chat && chat.title === 'New Chat') {
-      const msgCount = dbGet('SELECT COUNT(*) as count FROM messages WHERE chat_id = ?', [chatId]);
-      if (msgCount && msgCount.count === 2) {
-        generateTitle(chatId, userId, client).catch(e =>
-          console.log(`[Chat Stream] Title generation failed:`, e.message)
-        );
+    try {
+      const { Chat, Message } = getModels();
+      const chat = await Chat.findByPk(chatId, { attributes: ['title'], raw: true });
+      if (chat && chat.title === 'New Chat') {
+        const msgCount = await Message.count({ where: { chat_id: chatId } });
+        if (msgCount === 2) {
+          generateTitle(chatId, userId, client).catch(e =>
+            console.log(`[Chat Stream] Title generation failed:`, e.message)
+          );
+        }
       }
+    } catch (e) {
+      console.log(`[Chat Stream] Error checking title:`, e.message);
     }
   };
 
   async function generateTitle(chatId, userId, client) {
     try {
-      const settings = dbGet('SELECT naming_model FROM user_settings WHERE user_id = ?', [userId]);
+      const { UserSettings, Message, Chat } = getModels();
+      const settings = await UserSettings.findByPk(userId, { raw: true });
       const namingModel = settings?.naming_model;
-      const db = getDb();
 
       if (!namingModel || namingModel === 'disabled') {
         const now = new Date();
         const title = `Chat ${now.toLocaleDateString()} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-        db.run('UPDATE chats SET title = ? WHERE id = ?', [title, chatId]);
-        saveDatabase();
+        await Chat.update({ title }, { where: { id: chatId } });
         console.log(`[Chat Stream] Generated date title for chat ${chatId}: ${title}`);
         return;
       }
 
-      const messages = dbAll('SELECT role, content FROM messages WHERE chat_id = ? ORDER BY created_at', [chatId]);
-      const userMessages = messages.filter(m => m.role === 'user').slice(0, 2);
+      const msgs = await Message.findAll({
+        where: { chat_id: chatId },
+        attributes: ['role', 'content'],
+        order: [['created_at', 'ASC']],
+        raw: true
+      });
+      const userMessages = msgs.filter(m => m.role === 'user').slice(0, 2);
       const context = userMessages.map(m => m.content).join('\n').slice(0, 500);
 
       const completion = await client.chat.completions.create({
@@ -98,16 +113,14 @@ router.post('/stream', authMiddleware, async (req, res) => {
 
       let title = completion.choices[0]?.message?.content?.trim() || 'New Chat';
       title = title.replace(/^["']|["']$/g, '').replace(/\.+$/, '').slice(0, 50);
-      db.run('UPDATE chats SET title = ? WHERE id = ?', [title, chatId]);
-      saveDatabase();
+      await Chat.update({ title }, { where: { id: chatId } });
       console.log(`[Chat Stream] Generated AI title for chat ${chatId}: ${title}`);
     } catch (e) {
       console.log(`[Chat Stream] Title generation failed for chat ${chatId}:`, e.message);
       const now = new Date();
       const title = `Chat ${now.toLocaleDateString()} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-      const db = getDb();
-      db.run('UPDATE chats SET title = ? WHERE id = ?', [title, chatId]);
-      saveDatabase();
+      const { Chat } = getModels();
+      await Chat.update({ title }, { where: { id: chatId } });
     }
   }
 
@@ -124,7 +137,7 @@ router.post('/stream', authMiddleware, async (req, res) => {
       if (shouldStop) {
         console.log(`[Chat Stream] Stopping stream processing for chat ${chatId}`);
         // Save partial content and mark done
-        saveToDb();
+        await saveToDb();
         return;
       }
 
@@ -139,7 +152,7 @@ router.post('/stream', authMiddleware, async (req, res) => {
     }
 
     // Stream completed normally - save to DB
-    saveToDb();
+    await saveToDb();
 
     res.write('data: [DONE]\n\n');
     res.end();

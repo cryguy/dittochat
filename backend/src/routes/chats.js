@@ -1,28 +1,58 @@
 const express = require('express');
-const { dbGet, dbAll, dbRun, getDb, saveDatabase } = require('../db');
+const { getModels } = require('../db');
 const { authMiddleware } = require('../middleware/auth');
 const { getOpenAIClient } = require('../services/openai');
 const { getStream } = require('../services/streamBuffer');
 
 const router = express.Router();
 
-router.get('/', authMiddleware, (req, res) => {
-  const chats = dbAll('SELECT id, title, created_at, updated_at FROM chats WHERE user_id = ? ORDER BY updated_at DESC', [req.user.id]);
-  res.json(chats);
+router.get('/', authMiddleware, async (req, res) => {
+  try {
+    const { Chat } = getModels();
+    const chats = await Chat.findAll({
+      where: { user_id: req.user.id },
+      attributes: ['id', 'title', 'created_at', 'updated_at'],
+      order: [['updated_at', 'DESC']],
+      raw: true
+    });
+    res.json(chats);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
-router.post('/', authMiddleware, (req, res) => {
+router.post('/', authMiddleware, async (req, res) => {
   const { id, title } = req.body;
   if (!id) return res.status(400).json({ error: 'Chat ID required' });
-  dbRun('INSERT INTO chats (id, user_id, title) VALUES (?, ?, ?)', [id, req.user.id, title || 'New Chat']);
-  res.json({ id, title: title || 'New Chat' });
+
+  try {
+    const { Chat } = getModels();
+    await Chat.create({ id, user_id: req.user.id, title: title || 'New Chat' });
+    res.json({ id, title: title || 'New Chat' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
-router.get('/:id', authMiddleware, (req, res) => {
-  const chat = dbGet('SELECT * FROM chats WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
-  if (!chat) return res.status(404).json({ error: 'Chat not found' });
-  const messages = dbAll('SELECT role, content, model, preset FROM messages WHERE chat_id = ? ORDER BY created_at', [req.params.id]);
-  res.json({ ...chat, messages });
+router.get('/:id', authMiddleware, async (req, res) => {
+  try {
+    const { Chat, Message } = getModels();
+    const chat = await Chat.findOne({
+      where: { id: req.params.id, user_id: req.user.id },
+      raw: true
+    });
+    if (!chat) return res.status(404).json({ error: 'Chat not found' });
+
+    const messages = await Message.findAll({
+      where: { chat_id: req.params.id },
+      attributes: ['role', 'content', 'model', 'preset'],
+      order: [['created_at', 'ASC']],
+      raw: true
+    });
+    res.json({ ...chat, messages });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // Resume an active stream for this chat
@@ -31,7 +61,6 @@ router.get('/:id/stream', authMiddleware, (req, res) => {
   const stream = getStream(chatId);
 
   // No active stream or already done - return 204
-  // (done streams are already saved to DB, frontend will get from messages)
   if (!stream || stream.done) {
     return res.status(204).end();
   }
@@ -66,89 +95,95 @@ router.get('/:id/stream', authMiddleware, (req, res) => {
   });
 });
 
-router.put('/:id', authMiddleware, (req, res) => {
+router.put('/:id', authMiddleware, async (req, res) => {
   const { title, messages } = req.body;
-  console.log('[Chats] PUT /:id', req.params.id);
-  console.log('[Chats] title:', title, 'typeof:', typeof title);
-  console.log('[Chats] messages:', messages?.length, 'first msg:', messages?.[0]);
-  const chat = dbGet('SELECT * FROM chats WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
-  if (!chat) return res.status(404).json({ error: 'Chat not found' });
 
-  const db = getDb();
-  const now = Math.floor(Date.now() / 1000);
-  if (title) db.run('UPDATE chats SET title = ?, updated_at = ? WHERE id = ?', [title, now, req.params.id]);
-  if (messages) {
-    db.run('DELETE FROM messages WHERE chat_id = ?', [req.params.id]);
-    for (const msg of messages) {
-      // Ensure no undefined values are passed to better-sqlite3
-      const role = msg.role || 'user';
-      const content = msg.content !== undefined ? msg.content : '';
-      const model = msg.model !== undefined ? msg.model : null;
-      const preset = msg.preset !== undefined ? msg.preset : null;
-      console.log('[Chats] INSERT message:', { role, contentLen: content.length, model, preset });
-      db.run('INSERT INTO messages (chat_id, role, content, model, preset) VALUES (?, ?, ?, ?, ?)', [req.params.id, role, content, model, preset]);
+  try {
+    const { Chat, Message } = getModels();
+    const chat = await Chat.findOne({ where: { id: req.params.id, user_id: req.user.id } });
+    if (!chat) return res.status(404).json({ error: 'Chat not found' });
+
+    const now = Math.floor(Date.now() / 1000);
+    if (title) {
+      await chat.update({ title, updated_at: now });
     }
-    db.run('UPDATE chats SET updated_at = ? WHERE id = ?', [now, req.params.id]);
+    if (messages) {
+      await Message.destroy({ where: { chat_id: req.params.id } });
+      const messageRecords = messages.map(msg => ({
+        chat_id: req.params.id,
+        role: msg.role || 'user',
+        content: msg.content !== undefined ? msg.content : '',
+        model: msg.model !== undefined ? msg.model : null,
+        preset: msg.preset !== undefined ? msg.preset : null
+      }));
+      await Message.bulkCreate(messageRecords);
+      await chat.update({ updated_at: now });
+    }
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
-  saveDatabase();
-  res.json({ success: true });
 });
 
-router.delete('/:id', authMiddleware, (req, res) => {
-  const chat = dbGet('SELECT id FROM chats WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
-  if (!chat) return res.status(404).json({ error: 'Chat not found' });
-  const db = getDb();
-  db.run('DELETE FROM messages WHERE chat_id = ?', [req.params.id]);
-  db.run('DELETE FROM chats WHERE id = ?', [req.params.id]);
-  saveDatabase();
-  res.json({ success: true });
+router.delete('/:id', authMiddleware, async (req, res) => {
+  try {
+    const { Chat, Message } = getModels();
+    const chat = await Chat.findOne({ where: { id: req.params.id, user_id: req.user.id } });
+    if (!chat) return res.status(404).json({ error: 'Chat not found' });
+
+    await Message.destroy({ where: { chat_id: req.params.id } });
+    await chat.destroy();
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 router.post('/:id/generate-title', authMiddleware, async (req, res) => {
   const { messages } = req.body;
-  const chat = dbGet('SELECT * FROM chats WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
-  if (!chat) return res.status(404).json({ error: 'Chat not found' });
-
-  const settings = dbGet('SELECT naming_model FROM user_settings WHERE user_id = ?', [req.user.id]);
-  const namingModel = settings?.naming_model;
-
-  if (!namingModel || namingModel === 'disabled') {
-    const now = new Date();
-    const title = `Chat ${now.toLocaleDateString()} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-    const db = getDb();
-    db.run('UPDATE chats SET title = ?, updated_at = ? WHERE id = ?', [title, Math.floor(Date.now() / 1000), req.params.id]);
-    saveDatabase();
-    return res.json({ title });
-  }
 
   try {
-    const client = getOpenAIClient();
-    const userMessages = messages.filter(m => m.role === 'user').slice(0, 2);
-    const context = userMessages.map(m => m.content).join('\n').slice(0, 500);
+    const { Chat, UserSettings } = getModels();
+    const chat = await Chat.findOne({ where: { id: req.params.id, user_id: req.user.id } });
+    if (!chat) return res.status(404).json({ error: 'Chat not found' });
 
-    const completion = await client.chat.completions.create({
-      model: namingModel,
-      messages: [
-        { role: 'system', content: 'Generate a very short title (3-6 words max). Return ONLY the title, no quotes.' },
-        { role: 'user', content: context }
-      ],
-      max_tokens: 20,
-      temperature: 0.7
-    });
+    const settings = await UserSettings.findByPk(req.user.id, { raw: true });
+    const namingModel = settings?.naming_model;
 
-    let title = completion.choices[0]?.message?.content?.trim() || 'New Chat';
-    title = title.replace(/^["']|["']$/g, '').replace(/\.+$/, '').slice(0, 50);
-    const db = getDb();
-    db.run('UPDATE chats SET title = ?, updated_at = ? WHERE id = ?', [title, Math.floor(Date.now() / 1000), req.params.id]);
-    saveDatabase();
-    res.json({ title });
+    if (!namingModel || namingModel === 'disabled') {
+      const now = new Date();
+      const title = `Chat ${now.toLocaleDateString()} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+      await chat.update({ title, updated_at: Math.floor(Date.now() / 1000) });
+      return res.json({ title });
+    }
+
+    try {
+      const client = getOpenAIClient();
+      const userMessages = messages.filter(m => m.role === 'user').slice(0, 2);
+      const context = userMessages.map(m => m.content).join('\n').slice(0, 500);
+
+      const completion = await client.chat.completions.create({
+        model: namingModel,
+        messages: [
+          { role: 'system', content: 'Generate a very short title (3-6 words max). Return ONLY the title, no quotes.' },
+          { role: 'user', content: context }
+        ],
+        max_tokens: 20,
+        temperature: 0.7
+      });
+
+      let title = completion.choices[0]?.message?.content?.trim() || 'New Chat';
+      title = title.replace(/^["']|["']$/g, '').replace(/\.+$/, '').slice(0, 50);
+      await chat.update({ title, updated_at: Math.floor(Date.now() / 1000) });
+      res.json({ title });
+    } catch (e) {
+      const now = new Date();
+      const title = `Chat ${now.toLocaleDateString()} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+      await chat.update({ title, updated_at: Math.floor(Date.now() / 1000) });
+      res.json({ title });
+    }
   } catch (e) {
-    const now = new Date();
-    const title = `Chat ${now.toLocaleDateString()} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-    const db = getDb();
-    db.run('UPDATE chats SET title = ?, updated_at = ? WHERE id = ?', [title, Math.floor(Date.now() / 1000), req.params.id]);
-    saveDatabase();
-    res.json({ title });
+    res.status(500).json({ error: e.message });
   }
 });
 

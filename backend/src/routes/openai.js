@@ -1,15 +1,16 @@
 const express = require('express');
 const crypto = require('crypto');
-const { dbGet } = require('../db');
+const { getModels } = require('../db');
 const { optionalAuthMiddleware } = require('../middleware/auth');
 const { getOpenAIClient } = require('../services/openai');
 const { buildApiMessages } = require('../utils/messages');
 
 const router = express.Router();
 
-function getUserSettings(userId) {
+async function getUserSettings(userId) {
   if (userId) {
-    const s = dbGet('SELECT * FROM user_settings WHERE user_id = ?', [userId]);
+    const { UserSettings } = getModels();
+    const s = await UserSettings.findByPk(userId, { raw: true });
     return {
       systemPrompt: s?.system_prompt ?? '',
       suffix: s?.suffix ?? '',
@@ -44,7 +45,7 @@ router.post('/chat/completions', optionalAuthMiddleware, async (req, res) => {
     return res.status(400).json({ error: { message: 'messages required', type: 'invalid_request_error' } });
   }
 
-  const settings = getUserSettings(req.user?.id);
+  const settings = await getUserSettings(req.user?.id);
   const apiMessages = buildApiMessages(messages, settings.systemPrompt, settings.suffix);
   const requestModel = model || settings.model || 'gpt-4o-mini';
   const client = getOpenAIClient();

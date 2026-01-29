@@ -52,11 +52,20 @@ export async function getRegistrationStatus(): Promise<RegistrationStatus> {
 }
 
 export async function logout(): Promise<void> {
-  try {
-    await apiRaw('/api/auth/logout', { method: 'POST' });
-  } catch {
-    // Ignore logout errors
-  }
+  const token = getToken();
+  // Clear token immediately to prevent race conditions where a new
+  // login/register token gets wiped by a pending async logout
   setToken(null);
   setUsername(null);
+  if (token) {
+    try {
+      await apiRaw('/api/auth/logout', {
+        method: 'POST',
+        skipAuth: true,
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch {
+      // Ignore logout errors
+    }
+  }
 }
