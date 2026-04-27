@@ -47,7 +47,7 @@ router.post('/chat/completions', optionalAuthMiddleware, async (req, res) => {
 
   const settings = await getUserSettings(req.user?.id);
   const apiMessages = buildApiMessages(messages, settings.systemPrompt, settings.suffix);
-  const requestModel = model || settings.model || 'gpt-4o-mini';
+  const requestModel = model || settings.model || 'kimi-k2.5:cloud';
   const client = getOpenAIClient();
 
   try {

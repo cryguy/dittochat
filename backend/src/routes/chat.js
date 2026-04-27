@@ -127,28 +127,53 @@ router.post('/stream', authMiddleware, async (req, res) => {
   try {
     const apiMessages = buildApiMessages(messages, systemPrompt, suffix);
     const stream = await client.chat.completions.create({
-      model: model || 'gpt-4o-mini',
+      model: model || 'kimi-k2.5:cloud',
       messages: apiMessages,
       stream: true
     });
 
+    let inThinking = false;
     for await (const chunk of stream) {
       // Stop processing if aborted or client disconnected
       if (shouldStop) {
         console.log(`[Chat Stream] Stopping stream processing for chat ${chatId}`);
         // Save partial content and mark done
+        if (inThinking) {
+          const closer = '</thinking>';
+          if (chatId) appendChunk(chatId, closer);
+          res.write(`data: ${JSON.stringify({ content: closer })}\n\n`);
+          inThinking = false;
+        }
         await saveToDb();
         return;
       }
 
-      const content = chunk.choices[0]?.delta?.content || '';
-      if (content) {
-        // Buffer chunk if chatId provided
-        if (chatId) {
-          appendChunk(chatId, content);
-        }
-        res.write(`data: ${JSON.stringify({ content })}\n\n`);
+      const delta = chunk.choices[0]?.delta || {};
+      const reasoning = delta.reasoning || '';
+      const content = delta.content || '';
+
+      let out = '';
+      if (reasoning) {
+        if (!inThinking) { out += '<thinking>'; inThinking = true; }
+        out += reasoning;
       }
+      if (content) {
+        if (inThinking) { out += '</thinking>'; inThinking = false; }
+        out += content;
+      }
+
+      if (out) {
+        if (chatId) appendChunk(chatId, out);
+        res.write(`data: ${JSON.stringify({ content: out })}\n\n`);
+      }
+    }
+
+    // Close any unclosed thinking block before saving
+    if (inThinking) {
+      const closer = '</thinking>';
+      if (chatId) appendChunk(chatId, closer);
+      res.write(`data: ${JSON.stringify({ content: closer })}\n\n`);
+      inThinking = false;
     }
 
     // Stream completed normally - save to DB
