@@ -13,6 +13,7 @@ interface ChatState {
   currentChatId: string | null;
   models: Model[];
   selectedModel: string;
+  modelCapabilities: Record<string, { capabilities: string[]; context_length: number | null }>;
   prompts: Prompt[];
   selectedPromptId: number | null;
   defaultPrompt: { system_prompt: string; suffix: string };
@@ -31,12 +32,13 @@ interface ChatState {
   deleteChat: (chatId: string) => Promise<void>;
   updateChatTitle: (chatId: string, title: string) => Promise<void>;
   setCurrentChat: (chatId: string | null) => void;
-  sendMessage: (content: string) => Promise<void>;
+  sendMessage: (content: string, images?: string[]) => Promise<void>;
   editMessage: (index: number, newContent: string) => Promise<void>;
   retryMessage: (index: number) => Promise<void>;
   retryStream: () => Promise<void>;
   resumeStream: () => Promise<void>;
   loadModels: () => Promise<void>;
+  loadModelCapabilities: (modelId: string) => Promise<void>;
   setSelectedModel: (model: string) => void;
   setSelectedPrompt: (promptId: number | null) => void;
   loadSettings: () => Promise<void>;
@@ -54,6 +56,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   currentChatId: null,
   models: [],
   selectedModel: '',
+  modelCapabilities: {},
   prompts: [],
   selectedPromptId: null,
   defaultPrompt: { system_prompt: '', suffix: '' },
@@ -171,7 +174,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set({ currentChatId: chatId });
   },
 
-  sendMessage: async (content: string) => {
+  sendMessage: async (content: string, images?: string[]) => {
     const state = get();
     let chatId = state.currentChatId;
 
@@ -186,7 +189,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const activePrompt = get().getActivePrompt();
 
     // Add user message
-    const messages: Message[] = [...chat.messages, { role: 'user', content }];
+    const userMessage: Message = {
+      role: 'user',
+      content,
+      ...(images && images.length ? { images } : {}),
+    };
+    const messages: Message[] = [...chat.messages, userMessage];
     set((s) => ({
       chats: {
         ...s.chats,
@@ -327,8 +335,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }));
 
     if (editedRole === 'user') {
-      // Send new message to get new response
-      await get().sendMessage(newContent);
+      // Send new message to get new response, preserving any attached images
+      await get().sendMessage(newContent, chat.messages[index].images);
     } else {
       // For assistant edits, just save the edited content
       const activePrompt = get().getActivePrompt();
@@ -375,7 +383,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }));
 
     // Resend the user message
-    await get().sendMessage(userMessage.content);
+    await get().sendMessage(userMessage.content, userMessage.images);
   },
 
   loadModels: async () => {
@@ -385,11 +393,28 @@ export const useChatStore = create<ChatState>((set, get) => ({
     if (sorted.length > 0 && !get().selectedModel) {
       set({ selectedModel: sorted[0].id });
     }
+    const selected = get().selectedModel;
+    if (selected) get().loadModelCapabilities(selected);
+  },
+
+  // Capabilities are fetched lazily per model (not for the whole catalog) and
+  // cached, driving vision-gating in the composer and the capability badges.
+  loadModelCapabilities: async (modelId: string) => {
+    if (!modelId || get().modelCapabilities[modelId]) return;
+    try {
+      const info = await modelsApi.fetchModelCapabilities(modelId);
+      set((s) => ({
+        modelCapabilities: { ...s.modelCapabilities, [modelId]: info },
+      }));
+    } catch {
+      // Treat as no known capabilities; never block model selection on this.
+    }
   },
 
   setSelectedModel: (model: string) => {
     set({ selectedModel: model });
     get().saveSettings({ model });
+    get().loadModelCapabilities(model);
   },
 
   setSelectedPrompt: (promptId: number | null) => {
@@ -415,6 +440,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     });
     if (settings.model) {
       set({ selectedModel: settings.model });
+      get().loadModelCapabilities(settings.model);
     }
     // Restore active prompt selection
     if (settings.active_prompt_id != null) {
@@ -499,7 +525,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }));
 
     // Resend
-    await get().sendMessage(lastUserMsg.content);
+    await get().sendMessage(lastUserMsg.content, lastUserMsg.images);
   },
 
   resumeStream: async () => {

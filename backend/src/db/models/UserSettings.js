@@ -19,6 +19,12 @@ module.exports = (sequelize) => {
       type: DataTypes.TEXT,
       defaultValue: null
     },
+    // 'off' | 'low' | 'medium' | 'high' | null. null keeps thinking on for
+    // thinking-capable models (preserves prior behavior).
+    reasoning_effort: {
+      type: DataTypes.TEXT,
+      defaultValue: null
+    },
     backend_url: {
       type: DataTypes.TEXT,
       defaultValue: null

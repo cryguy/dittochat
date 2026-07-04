@@ -10,6 +10,7 @@ export function ChatArea() {
     streamingContent,
     streamError,
     selectedModel,
+    modelCapabilities,
     sendMessage,
     editMessage,
     retryMessage,
@@ -22,6 +23,7 @@ export function ChatArea() {
   const chat = currentChatId ? chats[currentChatId] : null;
   const messages = chat?.messages || [];
   const activePrompt = getActivePrompt();
+  const visionSupported = !!modelCapabilities[selectedModel]?.capabilities?.includes('vision');
 
   return (
     <div className="chat-area">
@@ -37,7 +39,12 @@ export function ChatArea() {
         onRetryStream={retryStream}
         onResumeStream={resumeStream}
       />
-      <ChatInput onSend={sendMessage} onStop={abortStream} isStreaming={isStreaming} />
+      <ChatInput
+        onSend={sendMessage}
+        onStop={abortStream}
+        isStreaming={isStreaming}
+        visionSupported={visionSupported}
+      />
     </div>
   );
 }

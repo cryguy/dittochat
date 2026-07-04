@@ -1,6 +1,7 @@
 const express = require('express');
 const { authMiddleware } = require('../middleware/auth');
-const { getOpenAIClient } = require('../services/openai');
+const { createOllamaClient, getOllamaClient, resolveThink } = require('../services/ollama');
+const { DEFAULT_MODEL } = require('../config');
 const { buildApiMessages } = require('../utils/messages');
 const { initStream, appendChunk, markDone, getStream, abortStream } = require('../services/streamBuffer');
 const { getModels } = require('../db');
@@ -18,6 +19,11 @@ router.post('/stream', authMiddleware, async (req, res) => {
   // Track if stream should stop (only via explicit abort)
   let shouldStop = false;
 
+  // Fresh client per request so aborting this stream doesn't cancel others.
+  const streamClient = createOllamaClient();
+  const titleClient = getOllamaClient();
+  const userId = req.user.id;
+
   // Initialize stream buffer if chatId provided
   let streamData = null;
   if (chatId) {
@@ -28,14 +34,12 @@ router.post('/stream', authMiddleware, async (req, res) => {
       streamData.emitter.once('abort', () => {
         shouldStop = true;
         console.log(`[Chat Stream] Abort signal received for chat ${chatId}`);
+        try { streamClient.abort(); } catch (e) { /* no in-flight request */ }
       });
     }
     // Send streamId in first chunk so frontend knows which stream this is
     res.write(`data: ${JSON.stringify({ streamId: chatId })}\n\n`);
   }
-
-  const client = getOpenAIClient();
-  const userId = req.user.id;
 
   const saveToDb = async () => {
     if (!chatId) return;
@@ -68,7 +72,7 @@ router.post('/stream', authMiddleware, async (req, res) => {
       if (chat && chat.title === 'New Chat') {
         const msgCount = await Message.count({ where: { chat_id: chatId } });
         if (msgCount === 2) {
-          generateTitle(chatId, userId, client).catch(e =>
+          generateTitle(chatId, userId, titleClient).catch(e =>
             console.log(`[Chat Stream] Title generation failed:`, e.message)
           );
         }
@@ -101,17 +105,18 @@ router.post('/stream', authMiddleware, async (req, res) => {
       const userMessages = msgs.filter(m => m.role === 'user').slice(0, 2);
       const context = userMessages.map(m => m.content).join('\n').slice(0, 500);
 
-      const completion = await client.chat.completions.create({
+      const completion = await client.chat({
         model: namingModel,
         messages: [
           { role: 'system', content: 'Generate a very short title (3-6 words max). Return ONLY the title, no quotes.' },
           { role: 'user', content: context }
         ],
-        max_tokens: 20,
-        temperature: 0.7
+        stream: false,
+        think: false,
+        options: { num_predict: 20, temperature: 0.7 }
       });
 
-      let title = completion.choices[0]?.message?.content?.trim() || 'New Chat';
+      let title = completion.message?.content?.trim() || 'New Chat';
       title = title.replace(/^["']|["']$/g, '').replace(/\.+$/, '').slice(0, 50);
       await Chat.update({ title }, { where: { id: chatId } });
       console.log(`[Chat Stream] Generated AI title for chat ${chatId}: ${title}`);
@@ -124,38 +129,37 @@ router.post('/stream', authMiddleware, async (req, res) => {
     }
   }
 
+  const requestModel = model || DEFAULT_MODEL;
+  let inThinking = false;
+
   try {
+    const { UserSettings } = getModels();
+    const userSettings = await UserSettings.findByPk(userId, { raw: true });
+    const think = await resolveThink(userSettings?.reasoning_effort, requestModel);
+
     const apiMessages = buildApiMessages(messages, systemPrompt, suffix);
-    const stream = await client.chat.completions.create({
-      model: model || 'kimi-k2.5:cloud',
+    const stream = await streamClient.chat({
+      model: requestModel,
       messages: apiMessages,
-      stream: true
+      stream: true,
+      ...(think !== undefined ? { think } : {})
     });
 
-    let inThinking = false;
-    for await (const chunk of stream) {
-      // Stop processing if aborted or client disconnected
-      if (shouldStop) {
-        console.log(`[Chat Stream] Stopping stream processing for chat ${chatId}`);
-        // Save partial content and mark done
-        if (inThinking) {
-          const closer = '</thinking>';
-          if (chatId) appendChunk(chatId, closer);
-          res.write(`data: ${JSON.stringify({ content: closer })}\n\n`);
-          inThinking = false;
-        }
-        await saveToDb();
-        return;
-      }
+    for await (const part of stream) {
+      // Stop processing if aborted
+      if (shouldStop) break;
 
-      const delta = chunk.choices[0]?.delta || {};
-      const reasoning = delta.reasoning || '';
-      const content = delta.content || '';
+      const message = part.message || {};
+      const thinking = message.thinking || '';
+      const content = message.content || '';
 
+      // Ollama's native /api/chat emits reasoning as a separate `thinking` field.
+      // Wrap it in <thinking>...</thinking> inline so the existing frontend parser
+      // and ThinkingBlock render it without any frontend changes.
       let out = '';
-      if (reasoning) {
+      if (thinking) {
         if (!inThinking) { out += '<thinking>'; inThinking = true; }
-        out += reasoning;
+        out += thinking;
       }
       if (content) {
         if (inThinking) { out += '</thinking>'; inThinking = false; }
@@ -167,23 +171,25 @@ router.post('/stream', authMiddleware, async (req, res) => {
         res.write(`data: ${JSON.stringify({ content: out })}\n\n`);
       }
     }
-
-    // Close any unclosed thinking block before saving
-    if (inThinking) {
-      const closer = '</thinking>';
-      if (chatId) appendChunk(chatId, closer);
-      res.write(`data: ${JSON.stringify({ content: closer })}\n\n`);
-      inThinking = false;
-    }
-
-    // Stream completed normally - save to DB
-    await saveToDb();
-
-    res.write('data: [DONE]\n\n');
-    res.end();
   } catch (e) {
-    console.log(`[Chat Stream] Error for chat ${chatId}:`, e.message);
-    // Ignore errors - stream continues to save on abort or will complete normally
+    // streamClient.abort() surfaces here too; only log genuine upstream errors.
+    if (!shouldStop) console.log(`[Chat Stream] Error for chat ${chatId}:`, e.message);
+  }
+
+  // Close any unclosed thinking block so saved/streamed content stays valid
+  // (both on normal end and mid-stream abort).
+  if (inThinking) {
+    const closer = '</thinking>';
+    if (chatId) appendChunk(chatId, closer);
+    if (!res.writableEnded) res.write(`data: ${JSON.stringify({ content: closer })}\n\n`);
+    inThinking = false;
+  }
+
+  await saveToDb();
+
+  if (!res.writableEnded) {
+    if (!shouldStop) res.write('data: [DONE]\n\n');
+    res.end();
   }
 });
 

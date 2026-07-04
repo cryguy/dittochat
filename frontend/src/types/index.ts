@@ -8,6 +8,7 @@ export interface Message {
   content: string;
   model?: string;
   preset?: string;
+  images?: string[]; // data URIs (data:<mime>;base64,...)
 }
 
 export interface Chat {
@@ -29,6 +30,12 @@ export interface Model {
   id: string;
   object: string;
   owned_by: string;
+  capabilities?: string[];
+  context_length?: number | null;
+  family?: string | null;
+  parameter_size?: string | null;
+  size?: number | null;
+  is_cloud?: boolean;
 }
 
 export interface Prompt {
@@ -45,6 +52,7 @@ export interface Settings {
   suffix: string;
   model: string;
   naming_model: string | null;
+  reasoning_effort: string | null; // 'off' | 'low' | 'medium' | 'high' | null
   active_prompt_id: number | null;
   active_prompt_is_global: number;
 }

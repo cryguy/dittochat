@@ -8,16 +8,23 @@ export function SettingsModal() {
   const { models, settings, saveSettings } = useChatStore();
 
   const [namingModel, setNamingModel] = useState('disabled');
+  const [reasoningEffort, setReasoningEffort] = useState('default');
 
   useEffect(() => {
     if (settings) {
       setNamingModel(settings.naming_model || 'disabled');
+      setReasoningEffort(settings.reasoning_effort || 'default');
     }
   }, [settings]);
 
   const handleNamingModelChange = async (value: string) => {
     setNamingModel(value);
     await saveSettings({ naming_model: value === 'disabled' ? null : value } as never);
+  };
+
+  const handleReasoningEffortChange = async (value: string) => {
+    setReasoningEffort(value);
+    await saveSettings({ reasoning_effort: value === 'default' ? null : value });
   };
 
   if (!isSettingsOpen) return null;
@@ -47,6 +54,20 @@ export function SettingsModal() {
                   </option>
                 ))}
               </select>
+            </div>
+            <div className="settings-group">
+              <label>Reasoning Effort</label>
+              <select
+                value={reasoningEffort}
+                onChange={(e) => handleReasoningEffortChange(e.target.value)}
+              >
+                <option value="default">Default (on for thinking models)</option>
+                <option value="off">Off (no thinking)</option>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+              <p className="settings-hint">Only applies to models that support thinking.</p>
             </div>
           </div>
 

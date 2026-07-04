@@ -4,10 +4,10 @@ try { require('dotenv').config(); } catch {}
 // Parse CLI arguments
 const args = process.argv.slice(2);
 for (let i = 0; i < args.length; i++) {
-  if ((args[i] === '--base-url' || args[i] === '-b') && args[i + 1]) {
-    process.env.OPENAI_BASE_URL = args[++i];
+  if ((args[i] === '--host' || args[i] === '--base-url' || args[i] === '-b') && args[i + 1]) {
+    process.env.OLLAMA_HOST = args[++i];
   } else if ((args[i] === '--api-key' || args[i] === '-k') && args[i + 1]) {
-    process.env.OPENAI_API_KEY = args[++i];
+    process.env.OLLAMA_API_KEY = args[++i];
   } else if ((args[i] === '--port' || args[i] === '-p') && args[i + 1]) {
     process.env.PORT = args[++i];
   } else if ((args[i] === '--db' || args[i] === '-d') && args[i + 1]) {
@@ -17,8 +17,8 @@ for (let i = 0; i < args.length; i++) {
 Usage: chat [options]
 
 Options:
-  -b, --base-url <url>   OpenAI-compatible API base URL
-  -k, --api-key <key>    API key
+  -b, --host <url>       Ollama host (default: https://ollama.com; alias: --base-url)
+  -k, --api-key <key>    Ollama API key
   -p, --port <port>      Server port (default: 3000)
   -d, --db <path>        Database file path (default: ./chat.db)
   -h, --help             Show this help message

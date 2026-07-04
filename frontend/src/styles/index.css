@@ -348,6 +348,66 @@ body {
   color: var(--accent);
 }
 
+.model-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+
+.model-item-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.model-dropdown-item.selected .model-item-badges {
+  color: var(--accent);
+}
+
+.model-dropdown-custom {
+  display: flex;
+  gap: 6px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--border-color);
+}
+
+.model-dropdown-custom input {
+  flex: 1;
+  min-width: 0;
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 12px;
+  padding: 6px 8px;
+}
+
+.model-dropdown-custom input:focus {
+  outline: none;
+  border-color: var(--text-secondary);
+}
+
+.model-dropdown-custom button {
+  flex-shrink: 0;
+  width: 30px;
+  border: none;
+  border-radius: 6px;
+  background: var(--text-primary);
+  color: var(--bg-primary);
+  cursor: pointer;
+}
+
+.model-dropdown-custom button:disabled {
+  background: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 /* Prompt Dropdown */
 .prompt-dropdown {
   position: relative;
@@ -741,6 +801,99 @@ body {
   background: var(--danger-hover);
 }
 
+/* Attach button (image input) mirrors the send button on the left */
+.attach-btn {
+  position: absolute;
+  left: 34px;
+  bottom: calc(34px + env(safe-area-inset-bottom, 0px));
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+
+.attach-btn:hover {
+  color: var(--text-primary);
+  background: var(--input-bg);
+}
+
+.attach-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Leave room for the attach button so typed text doesn't run under it */
+.user-input.has-attach {
+  padding-left: 52px;
+}
+
+/* Image attachment thumbnails in the composer */
+.input-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.input-image-thumb {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+
+.input-image-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.input-image-remove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Images rendered inside a message */
+.message-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.message-image {
+  max-width: 240px;
+  max-height: 240px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  object-fit: contain;
+  cursor: pointer;
+  display: block;
+}
+
 /* Stream Error */
 .stream-error {
   margin-top: 12px;
@@ -1074,6 +1227,12 @@ body {
   font-weight: 500;
   margin-bottom: 8px;
   color: var(--text-secondary);
+}
+
+.settings-hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
 .settings-group textarea,
@@ -1904,6 +2063,11 @@ body {
 
   .send-btn {
     right: 26px;
+    bottom: calc(26px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .attach-btn {
+    left: 26px;
     bottom: calc(26px + env(safe-area-inset-bottom, 0px));
   }
 

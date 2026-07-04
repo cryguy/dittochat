@@ -14,7 +14,7 @@ const {
 } = require('./routes');
 
 const app = express();
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '25mb' }));
 
 // API Routes
 app.use('/api/auth', authRoutes);

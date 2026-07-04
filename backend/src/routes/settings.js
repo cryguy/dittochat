@@ -13,6 +13,7 @@ router.get('/', authMiddleware, async (req, res) => {
       suffix: settings?.suffix ?? '',
       model: settings?.model ?? '',
       naming_model: settings?.naming_model ?? null,
+      reasoning_effort: settings?.reasoning_effort ?? null,
       active_prompt_id: settings?.active_prompt_id ?? null,
       active_prompt_is_global: settings?.active_prompt_is_global ?? 0
     });
@@ -24,7 +25,7 @@ router.get('/', authMiddleware, async (req, res) => {
 router.put('/', authMiddleware, async (req, res) => {
   try {
     const { UserSettings } = getModels();
-    const fields = ['system_prompt', 'suffix', 'model', 'naming_model', 'active_prompt_id', 'active_prompt_is_global'];
+    const fields = ['system_prompt', 'suffix', 'model', 'naming_model', 'reasoning_effort', 'active_prompt_id', 'active_prompt_is_global'];
     const updates = { user_id: req.user.id };
 
     for (const field of fields) {

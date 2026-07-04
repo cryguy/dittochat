@@ -1,7 +1,12 @@
 const path = require('path');
 
-const BASE_URL = process.env.OPENAI_BASE_URL || 'http://127.0.0.1:8317/v1/';
-const API_KEY = process.env.OPENAI_API_KEY || 'sk-placeholder';
+// Ollama connection. Defaults to Ollama Cloud (https://ollama.com).
+// The host is a bare origin (no /v1 suffix) since we use Ollama's native API.
+// OPENAI_API_KEY is honored as a fallback so existing deployments keep working.
+const OLLAMA_HOST = process.env.OLLAMA_HOST || 'https://ollama.com';
+const OLLAMA_API_KEY = process.env.OLLAMA_API_KEY || process.env.OPENAI_API_KEY || '';
+const DEFAULT_MODEL = process.env.DEFAULT_MODEL || 'kimi-k2.5:cloud';
+
 const DB_PATH = process.env.DB_PATH || path.join(process.cwd(), 'chat.db');
 const PORT = process.env.PORT || 3000;
 
@@ -21,8 +26,9 @@ try {
 }
 
 module.exports = {
-  BASE_URL,
-  API_KEY,
+  OLLAMA_HOST,
+  OLLAMA_API_KEY,
+  DEFAULT_MODEL,
   DB_PATH,
   PORT,
   promptList

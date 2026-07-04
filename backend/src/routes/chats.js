@@ -1,10 +1,21 @@
 const express = require('express');
 const { getModels } = require('../db');
 const { authMiddleware } = require('../middleware/auth');
-const { getOpenAIClient } = require('../services/openai');
+const { getOllamaClient } = require('../services/ollama');
 const { getStream } = require('../services/streamBuffer');
 
 const router = express.Router();
+
+// messages.images is stored as a JSON-encoded array of data URIs.
+function parseImages(raw) {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length ? parsed : null;
+  } catch {
+    return null;
+  }
+}
 
 router.get('/', authMiddleware, async (req, res) => {
   try {
@@ -43,11 +54,21 @@ router.get('/:id', authMiddleware, async (req, res) => {
     });
     if (!chat) return res.status(404).json({ error: 'Chat not found' });
 
-    const messages = await Message.findAll({
+    const rows = await Message.findAll({
       where: { chat_id: req.params.id },
-      attributes: ['role', 'content', 'model', 'preset'],
+      attributes: ['role', 'content', 'model', 'preset', 'images'],
       order: [['created_at', 'ASC']],
       raw: true
+    });
+    const messages = rows.map(m => {
+      const images = parseImages(m.images);
+      return {
+        role: m.role,
+        content: m.content,
+        model: m.model,
+        preset: m.preset,
+        ...(images ? { images } : {})
+      };
     });
     res.json({ ...chat, messages });
   } catch (e) {
@@ -114,7 +135,8 @@ router.put('/:id', authMiddleware, async (req, res) => {
         role: msg.role || 'user',
         content: msg.content !== undefined ? msg.content : '',
         model: msg.model !== undefined ? msg.model : null,
-        preset: msg.preset !== undefined ? msg.preset : null
+        preset: msg.preset !== undefined ? msg.preset : null,
+        images: Array.isArray(msg.images) && msg.images.length ? JSON.stringify(msg.images) : null
       }));
       await Message.bulkCreate(messageRecords);
       await chat.update({ updated_at: now });
@@ -158,21 +180,22 @@ router.post('/:id/generate-title', authMiddleware, async (req, res) => {
     }
 
     try {
-      const client = getOpenAIClient();
+      const client = getOllamaClient();
       const userMessages = messages.filter(m => m.role === 'user').slice(0, 2);
       const context = userMessages.map(m => m.content).join('\n').slice(0, 500);
 
-      const completion = await client.chat.completions.create({
+      const completion = await client.chat({
         model: namingModel,
         messages: [
           { role: 'system', content: 'Generate a very short title (3-6 words max). Return ONLY the title, no quotes.' },
           { role: 'user', content: context }
         ],
-        max_tokens: 20,
-        temperature: 0.7
+        stream: false,
+        think: false,
+        options: { num_predict: 20, temperature: 0.7 }
       });
 
-      let title = completion.choices[0]?.message?.content?.trim() || 'New Chat';
+      let title = completion.message?.content?.trim() || 'New Chat';
       title = title.replace(/^["']|["']$/g, '').replace(/\.+$/, '').slice(0, 50);
       await chat.update({ title, updated_at: Math.floor(Date.now() / 1000) });
       res.json({ title });

@@ -1,13 +1,30 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, type KeyboardEvent } from 'react';
+import type { Model } from '../../types';
 
 interface ModelDropdownProps {
-  models: { id: string }[];
+  models: Model[];
   selectedModel: string;
+  selectedCapabilities?: string[];
   onSelect: (modelId: string) => void;
 }
 
-export function ModelDropdown({ models, selectedModel, onSelect }: ModelDropdownProps) {
+// thinking/tools/vision icons for a given capability set (plus a cloud marker).
+function CapabilityIcons({ capabilities, isCloud }: { capabilities?: string[]; isCloud?: boolean }) {
+  const caps = capabilities || [];
+  if (!isCloud && caps.length === 0) return null;
+  return (
+    <span className="model-item-badges">
+      {isCloud && <i className="fas fa-cloud" title="Cloud" />}
+      {caps.includes('thinking') && <i className="fas fa-brain" title="Thinking" />}
+      {caps.includes('tools') && <i className="fas fa-wrench" title="Tools" />}
+      {caps.includes('vision') && <i className="fas fa-eye" title="Vision" />}
+    </span>
+  );
+}
+
+export function ModelDropdown({ models, selectedModel, selectedCapabilities, onSelect }: ModelDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [customValue, setCustomValue] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -26,6 +43,21 @@ export function ModelDropdown({ models, selectedModel, onSelect }: ModelDropdown
     setIsOpen(false);
   };
 
+  const submitCustom = () => {
+    const trimmed = customValue.trim();
+    if (trimmed) {
+      setCustomValue('');
+      handleSelect(trimmed);
+    }
+  };
+
+  const handleCustomKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      submitCustom();
+    }
+  };
+
   return (
     <div className="model-dropdown" ref={dropdownRef}>
       <button
@@ -34,6 +66,7 @@ export function ModelDropdown({ models, selectedModel, onSelect }: ModelDropdown
         type="button"
       >
         <span className="model-dropdown-value">{selectedModel || 'Select model'}</span>
+        <CapabilityIcons capabilities={selectedCapabilities} />
         <i className={`fas fa-chevron-down model-dropdown-arrow ${isOpen ? 'open' : ''}`}></i>
       </button>
       {isOpen && (
@@ -45,9 +78,29 @@ export function ModelDropdown({ models, selectedModel, onSelect }: ModelDropdown
               onClick={() => handleSelect(model.id)}
               type="button"
             >
-              {model.id}
+              <span className="model-item-row">
+                <span className="model-item-name">{model.id}</span>
+                <CapabilityIcons capabilities={model.capabilities} isCloud={model.is_cloud} />
+              </span>
             </button>
           ))}
+          <div className="model-dropdown-custom">
+            <input
+              type="text"
+              placeholder="Custom model id…"
+              value={customValue}
+              onChange={(e) => setCustomValue(e.target.value)}
+              onKeyDown={handleCustomKeyDown}
+            />
+            <button
+              type="button"
+              onClick={submitCustom}
+              disabled={!customValue.trim()}
+              title="Use this model"
+            >
+              <i className="fas fa-arrow-right"></i>
+            </button>
+          </div>
         </div>
       )}
     </div>

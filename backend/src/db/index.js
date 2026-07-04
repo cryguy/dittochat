@@ -4,6 +4,15 @@ const { DB_PATH } = require('../config');
 let sequelize;
 let models = {};
 
+// Add a column only if it does not already exist. SQLite's ALTER TABLE ADD
+// COLUMN is safe/cheap and this keeps existing databases forward-compatible.
+async function ensureColumn(table, column, ddlType) {
+  const [cols] = await sequelize.query(`PRAGMA table_info(${table});`);
+  if (cols.some(c => c.name === column)) return;
+  await sequelize.query(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddlType};`);
+  console.log(`[DB] Added column ${table}.${column}`);
+}
+
 async function initDatabase() {
   sequelize = new Sequelize({
     dialect: 'sqlite',
@@ -46,6 +55,11 @@ async function initDatabase() {
   await sequelize.query('PRAGMA foreign_keys = OFF;');
   await sequelize.sync();
   await sequelize.query('PRAGMA foreign_keys = ON;');
+
+  // sequelize.sync() creates missing tables but never adds columns to existing
+  // ones, so additive schema changes need an explicit, idempotent migration.
+  await ensureColumn('user_settings', 'reasoning_effort', 'TEXT');
+  await ensureColumn('messages', 'images', 'TEXT');
 
   // Seed default app settings
   await models.AppSetting.findOrCreate({

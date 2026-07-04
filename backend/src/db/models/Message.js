@@ -19,6 +19,11 @@ module.exports = (sequelize) => {
       type: DataTypes.TEXT,
       allowNull: false
     },
+    // JSON-encoded array of image data URIs attached to the message (null when none).
+    images: {
+      type: DataTypes.TEXT,
+      defaultValue: null
+    },
     model: {
       type: DataTypes.TEXT
     },

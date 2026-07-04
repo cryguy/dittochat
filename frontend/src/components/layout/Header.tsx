@@ -10,6 +10,7 @@ export function Header({ onMenuToggle }: HeaderProps) {
   const {
     models,
     selectedModel,
+    modelCapabilities,
     setSelectedModel,
     prompts,
     selectedPromptId,
@@ -24,6 +25,7 @@ export function Header({ onMenuToggle }: HeaderProps) {
       <ModelDropdown
         models={models}
         selectedModel={selectedModel}
+        selectedCapabilities={modelCapabilities[selectedModel]?.capabilities}
         onSelect={setSelectedModel}
       />
       <PromptDropdown

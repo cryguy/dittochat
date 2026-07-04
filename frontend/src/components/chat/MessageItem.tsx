@@ -93,11 +93,26 @@ export const MessageItem = memo(function MessageItem({
               onCancel={handleCancel}
             />
           ) : (
-            <MessageContent
-              content={message.content}
-              role={message.role}
-              isStreaming={isStreaming}
-            />
+            <>
+              {message.images && message.images.length > 0 && (
+                <div className="message-images">
+                  {message.images.map((src, idx) => (
+                    <a key={idx} href={src} target="_blank" rel="noreferrer">
+                      <img
+                        className="message-image"
+                        src={src}
+                        alt={`attachment ${idx + 1}`}
+                      />
+                    </a>
+                  ))}
+                </div>
+              )}
+              <MessageContent
+                content={message.content}
+                role={message.role}
+                isStreaming={isStreaming}
+              />
+            </>
           )}
         </div>
       </div>
