@@ -1,11 +1,48 @@
 import { useState, useEffect } from 'react';
+import { X } from 'lucide-react';
 import { useSettings } from '../../contexts/SettingsContext';
 import { useChatStore } from '../../stores/chatStore';
 import { PromptSettings } from './PromptSettings';
+import {
+  useAppearance,
+  VOICE_OPTIONS,
+  DENSITY_OPTIONS,
+  ACCENT_OPTIONS,
+} from '../../contexts/AppearanceContext';
+
+interface SegmentedProps<T extends string> {
+  label: string;
+  value: T;
+  options: readonly T[];
+  onChange: (value: T) => void;
+  swatches?: boolean;
+}
+
+function Segmented<T extends string>({ label, value, options, onChange, swatches }: SegmentedProps<T>) {
+  return (
+    <div className="settings-group">
+      <label>{label}</label>
+      <div className="segmented">
+        {options.map((opt) => (
+          <button
+            key={opt}
+            type="button"
+            className={`segmented-btn ${value === opt ? 'active' : ''}`}
+            onClick={() => onChange(opt)}
+          >
+            {swatches && <span className={`accent-swatch accent-swatch-${opt.toLowerCase()}`} />}
+            {opt}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function SettingsModal() {
   const { isSettingsOpen, closeSettings } = useSettings();
   const { models, settings, saveSettings } = useChatStore();
+  const { voice, density, accent, setVoice, setDensity, setAccent } = useAppearance();
 
   const [namingModel, setNamingModel] = useState('disabled');
   const [reasoningEffort, setReasoningEffort] = useState('default');
@@ -34,11 +71,18 @@ export function SettingsModal() {
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>Settings</h2>
-          <button className="modal-close" onClick={closeSettings}>
-            <i className="fas fa-times"></i>
+          <button className="modal-close" onClick={closeSettings} title="Close">
+            <X size={18} strokeWidth={2} />
           </button>
         </div>
         <div className="modal-body">
+          <div className="settings-section">
+            <h3>Appearance</h3>
+            <Segmented label="Narrative voice" value={voice} options={VOICE_OPTIONS} onChange={setVoice} />
+            <Segmented label="Reading density" value={density} options={DENSITY_OPTIONS} onChange={setDensity} />
+            <Segmented label="Accent" value={accent} options={ACCENT_OPTIONS} onChange={setAccent} swatches />
+          </div>
+
           <div className="settings-section">
             <h3>General</h3>
             <div className="settings-group">

@@ -1,3 +1,4 @@
+import { Trash2, ShieldCheck, Settings, LogOut } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { useAdmin } from '../../contexts/AdminContext';
@@ -18,12 +19,10 @@ export function SidebarFooter() {
   return (
     <div className="sidebar-footer">
       <div className="user-card">
-        <div className="user-avatar">
-          {username?.charAt(0).toUpperCase()}
-        </div>
+        <div className="user-avatar">{username?.charAt(0).toUpperCase()}</div>
         <div className="user-details">
           <span className="user-name">{username}</span>
-          {isAdmin && <span className="admin-tag">Admin</span>}
+          <span className="user-plan">{isAdmin ? 'Admin' : 'Member'}</span>
         </div>
       </div>
       <div className="sidebar-actions">
@@ -31,32 +30,20 @@ export function SidebarFooter() {
           className="sidebar-action-btn"
           onClick={handleDeleteChat}
           disabled={!currentChatId}
-          title="Delete Chat"
+          title="Delete chat"
         >
-          <i className="fas fa-trash"></i>
+          <Trash2 size={16} strokeWidth={2} />
         </button>
         {isAdmin && (
-          <button
-            className="sidebar-action-btn"
-            onClick={openAdminPanel}
-            title="Admin Panel"
-          >
-            <i className="fas fa-user-shield"></i>
+          <button className="sidebar-action-btn" onClick={openAdminPanel} title="Admin panel">
+            <ShieldCheck size={16} strokeWidth={2} />
           </button>
         )}
-        <button
-          className="sidebar-action-btn"
-          onClick={openSettings}
-          title="Settings"
-        >
-          <i className="fas fa-cog"></i>
+        <button className="sidebar-action-btn" onClick={openSettings} title="Settings">
+          <Settings size={16} strokeWidth={2} />
         </button>
-        <button
-          className="sidebar-action-btn"
-          onClick={logout}
-          title="Logout"
-        >
-          <i className="fas fa-sign-out-alt"></i>
+        <button className="sidebar-action-btn" onClick={logout} title="Log out">
+          <LogOut size={16} strokeWidth={2} />
         </button>
       </div>
     </div>

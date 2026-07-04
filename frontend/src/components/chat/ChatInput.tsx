@@ -1,4 +1,12 @@
-import { useState, useRef, useCallback, type KeyboardEvent, type ClipboardEvent, type ChangeEvent } from 'react';
+import {
+  useState,
+  useRef,
+  useCallback,
+  type KeyboardEvent,
+  type ClipboardEvent,
+  type ChangeEvent,
+} from 'react';
+import { ArrowUp, Square, ImagePlus, X } from 'lucide-react';
 
 interface ChatInputProps {
   onSend: (content: string, images?: string[]) => void;
@@ -98,53 +106,56 @@ export function ChatInput({ onSend, onStop, isStreaming, visionSupported = false
                 onClick={() => removeImage(idx)}
                 title="Remove image"
               >
-                <i className="fas fa-times"></i>
+                <X size={11} strokeWidth={2.5} />
               </button>
             </div>
           ))}
         </div>
       )}
-      {visionSupported && (
-        <>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            hidden
-            onChange={handleFileChange}
-          />
-          <button
-            type="button"
-            className="attach-btn"
-            title="Attach image"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isStreaming}
-          >
-            <i className="fas fa-image"></i>
-          </button>
-        </>
-      )}
-      <textarea
-        ref={textareaRef}
-        className={`user-input ${visionSupported ? 'has-attach' : ''}`}
-        placeholder="Type your message..."
-        value={value}
-        onChange={(e) => {
-          setValue(e.target.value);
-          autoResize();
-        }}
-        onKeyDown={handleKeyDown}
-        onPaste={handlePaste}
-        disabled={isStreaming}
-      />
-      <button
-        className={`send-btn ${isStreaming ? 'stop' : ''}`}
-        onClick={handleButtonClick}
-        disabled={!canSend}
-      >
-        <i className={`fas ${isStreaming ? 'fa-stop' : 'fa-paper-plane'}`}></i>
-      </button>
+      <div className={`composer ${isStreaming ? 'streaming' : ''}`}>
+        {visionSupported && (
+          <>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              hidden
+              onChange={handleFileChange}
+            />
+            <button
+              type="button"
+              className="attach-btn"
+              title="Attach image"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isStreaming}
+            >
+              <ImagePlus size={18} strokeWidth={2} />
+            </button>
+          </>
+        )}
+        <textarea
+          ref={textareaRef}
+          className="user-input"
+          placeholder="Continue the conversation…"
+          value={value}
+          onChange={(e) => {
+            setValue(e.target.value);
+            autoResize();
+          }}
+          onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
+          disabled={isStreaming}
+        />
+        <button
+          className={`send-btn ${isStreaming ? 'stop' : ''}`}
+          onClick={handleButtonClick}
+          disabled={!canSend}
+          title={isStreaming ? 'Stop' : 'Send'}
+        >
+          {isStreaming ? <Square size={16} strokeWidth={2.4} /> : <ArrowUp size={18} strokeWidth={2.4} />}
+        </button>
+      </div>
     </div>
   );
 }

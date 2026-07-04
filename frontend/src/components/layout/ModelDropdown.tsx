@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, type KeyboardEvent } from 'react';
+import { ChevronDown, ArrowRight } from 'lucide-react';
 import type { Model } from '../../types';
 
 interface ModelDropdownProps {
@@ -65,9 +66,14 @@ export function ModelDropdown({ models, selectedModel, selectedCapabilities, onS
         onClick={() => setIsOpen(!isOpen)}
         type="button"
       >
+        <span className="model-dot" aria-hidden="true" />
         <span className="model-dropdown-value">{selectedModel || 'Select model'}</span>
         <CapabilityIcons capabilities={selectedCapabilities} />
-        <i className={`fas fa-chevron-down model-dropdown-arrow ${isOpen ? 'open' : ''}`}></i>
+        <ChevronDown
+          size={13}
+          strokeWidth={2.2}
+          className={`model-dropdown-arrow ${isOpen ? 'open' : ''}`}
+        />
       </button>
       {isOpen && (
         <div className="model-dropdown-menu">
@@ -98,7 +104,7 @@ export function ModelDropdown({ models, selectedModel, selectedCapabilities, onS
               disabled={!customValue.trim()}
               title="Use this model"
             >
-              <i className="fas fa-arrow-right"></i>
+              <ArrowRight size={15} strokeWidth={2.2} />
             </button>
           </div>
         </div>

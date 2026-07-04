@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AppearanceProvider } from './contexts/AppearanceContext';
 import { SettingsProvider } from './contexts/SettingsContext';
 import { ImportProvider } from './contexts/ImportContext';
 import { AdminProvider } from './contexts/AdminContext';
@@ -72,16 +73,18 @@ function AppRoutes() {
 export function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <SettingsProvider>
-          <ImportProvider>
-            <AdminProvider>
-              <AppRoutes />
-              <AdminPanel />
-            </AdminProvider>
-          </ImportProvider>
-        </SettingsProvider>
-      </AuthProvider>
+      <AppearanceProvider>
+        <AuthProvider>
+          <SettingsProvider>
+            <ImportProvider>
+              <AdminProvider>
+                <AppRoutes />
+                <AdminPanel />
+              </AdminProvider>
+            </ImportProvider>
+          </SettingsProvider>
+        </AuthProvider>
+      </AppearanceProvider>
     </BrowserRouter>
   );
 }

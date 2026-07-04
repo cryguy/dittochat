@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { VList, type VListHandle } from 'virtua';
+import { Sparkles, AlertTriangle, Play, RotateCcw } from 'lucide-react';
 import { MessageItem } from './MessageItem';
 import { MessageContent } from './MessageContent';
 import type { Message } from '../../types';
@@ -98,17 +99,17 @@ export function MessageList({
   if (messages.length === 0 && !showStreamingMessage) {
     return (
       <div className="welcome-screen">
+        <div className="welcome-mark">
+          <Sparkles size={26} strokeWidth={1.8} />
+        </div>
         <h1>What can I help you with?</h1>
+        <p className="welcome-sub">Start a new chat, or pick up where you left off.</p>
       </div>
     );
   }
 
   return (
-    <VList
-      ref={listRef}
-      className="message-list"
-      onScroll={handleScroll}
-    >
+    <VList ref={listRef} className="message-list" onScroll={handleScroll}>
       {items.map((message, index) => (
         <MessageItem
           key={index}
@@ -124,12 +125,14 @@ export function MessageList({
         <div className="message assistant">
           <div className="message-inner">
             <div className="message-avatar">
-              <i className="fas fa-robot"></i>
+              <Sparkles size={18} strokeWidth={2} />
             </div>
             <div className="message-body">
               <div className="message-header">
                 <div className="message-role">
-                  Assistant - {selectedModel} - {presetName}
+                  <span className="message-role-part">Assistant</span>
+                  {selectedModel && <span className="message-role-part">{selectedModel}</span>}
+                  {presetName && <span className="message-role-part">{presetName}</span>}
                 </div>
                 <div className="message-actions"></div>
               </div>
@@ -140,20 +143,26 @@ export function MessageList({
                   isStreaming={isStreaming}
                 />
               )}
+              {isStreaming && !streamError && (
+                <div className="writing-indicator">
+                  <span className="writing-dot" />
+                  <span>Assistant is writing…</span>
+                </div>
+              )}
               {streamError && (
                 <div className="stream-error">
                   <div className="stream-error-message">
-                    <i className="fas fa-exclamation-triangle"></i>
+                    <AlertTriangle size={16} strokeWidth={2} />
                     {streamError}
                   </div>
                   <div className="stream-error-actions">
                     {streamingContent && (
                       <button className="btn-resume" onClick={onResumeStream}>
-                        <i className="fas fa-play"></i> Resume
+                        <Play size={14} strokeWidth={2} /> Resume
                       </button>
                     )}
                     <button className="btn-retry" onClick={onRetryStream}>
-                      <i className="fas fa-rotate-right"></i> Retry
+                      <RotateCcw size={14} strokeWidth={2} /> Retry
                     </button>
                   </div>
                 </div>

@@ -10,13 +10,17 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fontsource-variable/instrument-sans": "^5.2.8",
+    "@fontsource-variable/jetbrains-mono": "^5.2.8",
+    "@fontsource-variable/newsreader": "^5.2.10",
+    "dompurify": "^3.2.2",
+    "lucide-react": "^1.23.0",
+    "marked": "^15.0.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.28.0",
-    "zustand": "^5.0.2",
     "virtua": "github:horselock/virtua-streaming-mutations",
-    "marked": "^15.0.4",
-    "dompurify": "^3.2.2"
+    "zustand": "^5.0.2"
   },
   "devDependencies": {
     "@types/react": "^18.3.12",

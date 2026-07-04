@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { Drama, ChevronDown } from 'lucide-react';
 import type { Prompt } from '../../types';
 
 interface PromptDropdownProps {
@@ -41,9 +42,13 @@ export function PromptDropdown({ prompts, selectedPromptId, onSelect }: PromptDr
         type="button"
         title={selectedPrompt?.description || 'Default prompt'}
       >
-        <i className="fas fa-scroll prompt-dropdown-icon"></i>
+        <Drama size={14} strokeWidth={2} className="prompt-dropdown-icon" />
         <span className="prompt-dropdown-value">{displayName}</span>
-        <i className={`fas fa-chevron-down prompt-dropdown-arrow ${isOpen ? 'open' : ''}`}></i>
+        <ChevronDown
+          size={13}
+          strokeWidth={2.2}
+          className={`prompt-dropdown-arrow ${isOpen ? 'open' : ''}`}
+        />
       </button>
       {isOpen && (
         <div className="prompt-dropdown-menu">

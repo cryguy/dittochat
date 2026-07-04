@@ -1,4 +1,5 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
+import { ChevronRight } from 'lucide-react';
 import { renderMarkdown } from '../../utils/markdown';
 
 interface ThinkingBlockProps {
@@ -98,7 +99,8 @@ export function ThinkingBlock({
   return (
     <details className="thinking-block" open={isOpen}>
       <summary onClick={(e) => { e.preventDefault(); handleToggle(); }}>
-        {isThinkingInProgress ? 'Thinking...' : 'Thinking'}
+        <ChevronRight size={13} strokeWidth={2.4} className="thinking-chevron" />
+        <span className="thinking-label">{isThinkingInProgress ? 'Thinking…' : 'Thinking'}</span>
       </summary>
       <div
         ref={contentRef}
