@@ -2,7 +2,11 @@
   "name": "dittochat",
   "private": true,
   "pnpm": {
-    "onlyBuiltDependencies": ["sqlite3"]
+    "onlyBuiltDependencies": [
+      "sqlite3",
+      "virtua",
+      "esbuild"
+    ]
   },
   "scripts": {
     "dev": "pnpm --filter frontend build && pnpm --filter backend start",
